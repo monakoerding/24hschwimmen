@@ -134,6 +134,47 @@ io.on('connection', (socket) => {
     broadcast();
   });
 
+  // Erste Person der Warteliste überspringen (z. B. noch nicht am Becken) -
+  // wandert ans Ende der Liste, die/der Nächste rückt als Kandidat/in nach
+  socket.on('skipQueueFront', () => {
+    if (state.queue.length === 0) return;
+    const skipped = state.queue.shift();
+    state.queue.push(skipped);
+    broadcast();
+  });
+
+  // Person direkt (ohne die Warteliste zu verändern) in die Bahn setzen -
+  // z. B. wenn spontan jemand anderes als geplant schwimmt
+  socket.on('startDirect', ({ name, cry, swimmerId }) => {
+    const l = state.lane;
+    if (l.currentSwimmerId) return; // Bahn muss erst frei sein
+    let id = swimmerId;
+    if (id) {
+      if (!getSwimmer(id)) return;
+    } else {
+      const cleanName = (name || '').trim();
+      if (!cleanName) return;
+      id = 's_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+      state.swimmers.push({ id, name: cleanName, cry: (cry || '').trim() });
+    }
+    l.currentSwimmerId = id;
+    l.laps = 0;
+    l.lastCountAt = 0;
+    broadcast();
+  });
+
+  // Warteliste neu sortieren (Drag & Drop in der Zähler-Ansicht)
+  socket.on('reorderQueue', ({ order }) => {
+    if (!Array.isArray(order)) return;
+    const current = new Set(state.queue);
+    const cleaned = order.filter((id) => current.has(id));
+    // Nur übernehmen, wenn es sich um eine reine Umsortierung handelt
+    // (keine Einträge verloren gegangen oder dazuerfunden)
+    if (cleaned.length !== state.queue.length) return;
+    state.queue = cleaned;
+    broadcast();
+  });
+
   // Aktuellen Schwimmer beenden (Bahn wird wieder frei)
   socket.on('finishSwimmer', () => {
     const l = state.lane;
@@ -146,6 +187,7 @@ io.on('connection', (socket) => {
   // Eine Bahn wurde geschwommen - Signal vom Zähler-Gerät
   socket.on('countLap', () => {
     const l = state.lane;
+    if (!l.currentSwimmerId) return; // niemand schwimmt gerade
     const now = Date.now();
     if (now - l.lastCountAt < LOCKOUT_MS) {
       socket.emit('countRejected', {

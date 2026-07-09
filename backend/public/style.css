@@ -266,6 +266,35 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
   text-align:center;
 }
 
+#startView, .start-confirm, .start-manual{
+  width: 100%;
+  max-width: 360px;
+}
+
+.start-question{
+  font-size: 20px;
+  color: var(--slate);
+  margin: -14px 0 20px;
+}
+
+.btn-stack{
+  display:flex;
+  flex-direction:column;
+  gap: 10px;
+}
+
+.start-manual label{ text-align:left; }
+.start-manual .empty-hint{ text-align:left; }
+
+.edit-queue-btn{
+  width: auto;
+  margin-top: 32px;
+  background: none;
+  color: var(--slate);
+  text-decoration: underline;
+  padding: 8px;
+}
+
 .counter-current{
   color: var(--slate);
   font-size: 16px;
@@ -329,3 +358,77 @@ footer.hint{
 }
 .conn-badge.ok{ color: var(--good); }
 .conn-badge.bad{ color: #FF6B4A; }
+
+/* ---- Warteliste bearbeiten (Overlay auf dem Zähler-Handy) ---- */
+.queue-editor-overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(6,16,23,0.85);
+  z-index: 50;
+  overflow-y: auto;
+  display:flex;
+  justify-content:center;
+  padding: 24px 16px 64px;
+}
+
+.queue-editor-panel{
+  width: 100%;
+  max-width: 480px;
+  height: fit-content;
+}
+
+.queue-editor-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom: 16px;
+}
+.queue-editor-header button{ width:auto; padding: 10px 16px; }
+
+.queue-editor-add{
+  background: linear-gradient(180deg, var(--panel), var(--ink));
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 20px;
+  margin-top: 8px;
+  text-align:left;
+}
+
+.dnd-list{ list-style:none; margin:0 0 8px; padding:0; text-align:left; }
+.dnd-item{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  background: linear-gradient(180deg, var(--panel), var(--ink));
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  touch-action: pan-y;
+}
+.dnd-item.dragging{
+  opacity: 0.6;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+.dnd-handle{
+  cursor: grab;
+  color: var(--slate);
+  font-size: 18px;
+  padding: 4px 6px;
+  touch-action: none;
+  user-select: none;
+}
+.dnd-pos{
+  font-family:'JetBrains Mono', monospace;
+  color: var(--slate);
+  width: 22px;
+}
+.dnd-name{ flex:1; text-align:left; }
+.dnd-remove{
+  background: none;
+  border:none;
+  color: var(--slate);
+  font-size: 15px;
+  padding: 4px 8px;
+  width:auto;
+}

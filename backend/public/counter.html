@@ -11,17 +11,82 @@
   <div class="eyebrow" style="margin-bottom:6px;">Uhlenköper-Camp · 24 Stunden Schwimmen 2026</div>
   <div class="lane-tag" style="margin-bottom:18px;"><span class="dot"></span>Zähler</div>
 
-  <div class="counter-current" id="currentInfo">Bahn ist frei</div>
-  <div class="counter-name" id="currentName">–</div>
+  <!-- Es schwimmt gerade jemand: Zähl-Button -->
+  <div id="swimmingView">
+    <div class="counter-current">Es schwimmt:</div>
+    <div class="counter-name" id="currentName">–</div>
 
-  <button class="count-btn" id="countBtn">
-    <span class="big-num" id="lapsNum">0</span>
-    BAHN GEZÄHLT
-  </button>
+    <button class="count-btn" id="countBtn">
+      <span class="big-num" id="lapsNum">0</span>
+      BAHN GEZÄHLT
+    </button>
 
-  <div class="cooldown" id="cooldownText"></div>
-  <div class="key-hint">Oder beliebige Taste / externen Button drücken</div>
+    <div class="cooldown" id="cooldownText"></div>
+    <div class="key-hint">Oder beliebige Taste / externen Button drücken</div>
+  </div>
+
+  <!-- Bahn ist frei: nächste Person bestätigen, überspringen oder manuell starten -->
+  <div id="startView" hidden>
+    <div class="empty-hint" id="startEmptyHint">Warteliste ist leer.</div>
+
+    <div class="start-confirm" id="startConfirm" hidden>
+      <div class="counter-current">Bahn ist frei</div>
+      <div class="counter-name" id="candidateName">–</div>
+      <div class="start-question">startet?</div>
+      <div class="btn-stack">
+        <button class="primary" id="confirmYesBtn">Ja</button>
+        <button class="secondary" id="confirmSkipBtn">Nein, überspringen, nächste:r</button>
+        <button class="secondary" id="confirmOtherBtn">Nein, anderen Namen eingeben</button>
+      </div>
+    </div>
+
+    <div class="start-manual" id="startManual" hidden>
+      <div class="eyebrow" style="margin-bottom:10px;">Andere Person starten</div>
+      <label for="manualNameInput">Name</label>
+      <input type="text" id="manualNameInput" placeholder="z. B. Mona" maxlength="40">
+      <label for="manualCryInput">Kampfschrei (optional)</label>
+      <input type="text" id="manualCryInput" placeholder="optional" maxlength="80">
+      <div class="empty-hint" style="padding-top:0;">oder schon registrierte Person wählen:</div>
+      <select id="manualExistingSelect">
+        <option value="">– Namen auswählen –</option>
+      </select>
+      <div class="btn-stack">
+        <button class="primary" id="manualStartBtn">Starten</button>
+        <button class="secondary" id="manualCancelBtn">Zurück</button>
+      </div>
+    </div>
+  </div>
+
+  <button class="secondary edit-queue-btn" id="openQueueEditorBtn">Warteliste bearbeiten</button>
 </div>
+
+<!-- Warteliste bearbeiten: Reihenfolge per Drag & Drop, löschen, hinzufügen -->
+<div class="queue-editor-overlay" id="queueEditor" hidden>
+  <div class="queue-editor-panel">
+    <div class="queue-editor-header">
+      <span class="eyebrow">Warteliste bearbeiten</span>
+      <button class="secondary" id="closeQueueEditorBtn">Fertig</button>
+    </div>
+
+    <ul class="dnd-list" id="dndQueueList"></ul>
+    <div class="empty-hint" id="dndEmptyHint">Warteliste ist leer.</div>
+
+    <div class="queue-editor-add">
+      <label for="editNameInput">Neuer Name</label>
+      <input type="text" id="editNameInput" placeholder="z. B. Mona" maxlength="40">
+      <label for="editCryInput">Kampfschrei (optional)</label>
+      <input type="text" id="editCryInput" placeholder="optional" maxlength="80">
+      <button class="primary" id="editAddNewBtn">Zur Warteliste hinzufügen</button>
+
+      <label for="editExistingSelect" style="margin-top:14px;">Schon registrierte Person hinzufügen</label>
+      <select id="editExistingSelect">
+        <option value="">– Namen auswählen –</option>
+      </select>
+      <button class="secondary" id="editAddExistingBtn">Zur Warteliste hinzufügen</button>
+    </div>
+  </div>
+</div>
+
 <div class="conn-badge" id="connBadge">verbinde…</div>
 
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
@@ -30,6 +95,12 @@ const socket = io();
 const connBadge = document.getElementById('connBadge');
 socket.on('connect', () => { connBadge.textContent = 'verbunden'; connBadge.className = 'conn-badge ok'; });
 socket.on('disconnect', () => { connBadge.textContent = 'getrennt'; connBadge.className = 'conn-badge bad'; });
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
 
 const countBtn = document.getElementById('countBtn');
 const cooldownText = document.getElementById('cooldownText');
@@ -56,9 +127,13 @@ function triggerCount() {
 countBtn.addEventListener('click', triggerCount);
 
 // Erlaubt das Zählen per beliebiger Taste – z. B. über einen USB-Arcade-Button
-// oder Presenter-Clicker, der einen Tastendruck simuliert. Welche Taste genau
-// gesendet wird, ist egal.
-document.addEventListener('keydown', () => {
+// oder Presenter-Clicker. Ignoriert Tastendrücke in Formularfeldern/Buttons
+// und wenn gerade niemand schwimmt oder die Warteliste bearbeitet wird.
+document.addEventListener('keydown', (e) => {
+  const tag = (e.target && e.target.tagName) || '';
+  if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(tag)) return;
+  if (queueEditorOpen) return;
+  if (!latestState || !latestState.lane.swimmerName) return;
   triggerCount();
 });
 
@@ -68,15 +143,202 @@ socket.on('countRejected', ({ remainingMs }) => {
   updateCooldownUI();
 });
 
+// ---- Nächste Person starten (Bahn frei) ----
+
+let latestState = null;
+let manualFormOpen = false;
+
+function populateExistingSelect(select, state, excludeQueued) {
+  if (!select) return;
+  const current = select.value;
+  const queuedIds = new Set(state.queue.map((s) => s.id));
+  select.innerHTML = '<option value="">– Namen auswählen –</option>';
+  state.swimmers.forEach((s) => {
+    if (excludeQueued && queuedIds.has(s.id)) return;
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.name;
+    select.appendChild(opt);
+  });
+  select.value = current;
+}
+
+function renderStartView(state) {
+  const emptyHint = document.getElementById('startEmptyHint');
+  const confirm = document.getElementById('startConfirm');
+  const manual = document.getElementById('startManual');
+
+  if (manualFormOpen) {
+    emptyHint.hidden = true;
+    confirm.hidden = true;
+    manual.hidden = false;
+    return;
+  }
+  manual.hidden = true;
+
+  if (state.queue.length === 0) {
+    emptyHint.hidden = false;
+    confirm.hidden = true;
+  } else {
+    emptyHint.hidden = true;
+    confirm.hidden = false;
+    document.getElementById('candidateName').textContent = state.queue[0].name;
+  }
+}
+
+document.getElementById('confirmYesBtn').addEventListener('click', () => {
+  socket.emit('assignNext');
+});
+document.getElementById('confirmSkipBtn').addEventListener('click', () => {
+  socket.emit('skipQueueFront');
+});
+document.getElementById('confirmOtherBtn').addEventListener('click', () => {
+  manualFormOpen = true;
+  if (latestState) renderStartView(latestState);
+});
+document.getElementById('manualCancelBtn').addEventListener('click', () => {
+  manualFormOpen = false;
+  if (latestState) renderStartView(latestState);
+});
+document.getElementById('manualStartBtn').addEventListener('click', () => {
+  const existingId = document.getElementById('manualExistingSelect').value;
+  const name = document.getElementById('manualNameInput').value.trim();
+  const cry = document.getElementById('manualCryInput').value.trim();
+  if (existingId) {
+    socket.emit('startDirect', { swimmerId: existingId });
+  } else {
+    if (!name) { alert('Bitte einen Namen eintragen oder eine Person auswählen.'); return; }
+    socket.emit('startDirect', { name, cry });
+  }
+  document.getElementById('manualNameInput').value = '';
+  document.getElementById('manualCryInput').value = '';
+  document.getElementById('manualExistingSelect').value = '';
+  manualFormOpen = false;
+});
+
+// ---- Warteliste bearbeiten (Drag & Drop, löschen, hinzufügen) ----
+
+let queueEditorOpen = false;
+let dndQueue = [];
+let dragging = null;
+
+document.getElementById('openQueueEditorBtn').addEventListener('click', () => {
+  queueEditorOpen = true;
+  document.getElementById('queueEditor').hidden = false;
+  if (latestState) {
+    dndQueue = latestState.queue.map((s) => ({ id: s.id, name: s.name }));
+    renderDndList();
+  }
+});
+document.getElementById('closeQueueEditorBtn').addEventListener('click', () => {
+  queueEditorOpen = false;
+  document.getElementById('queueEditor').hidden = true;
+});
+
+document.getElementById('editAddNewBtn').addEventListener('click', () => {
+  const name = document.getElementById('editNameInput').value.trim();
+  const cry = document.getElementById('editCryInput').value.trim();
+  if (!name) { alert('Bitte einen Namen eintragen.'); return; }
+  socket.emit('register', { name, cry });
+  document.getElementById('editNameInput').value = '';
+  document.getElementById('editCryInput').value = '';
+});
+document.getElementById('editAddExistingBtn').addEventListener('click', () => {
+  const id = document.getElementById('editExistingSelect').value;
+  if (!id) { alert('Bitte eine Person auswählen.'); return; }
+  socket.emit('selectExisting', { swimmerId: id });
+  document.getElementById('editExistingSelect').value = '';
+});
+
+function renderDndList() {
+  const ul = document.getElementById('dndQueueList');
+  ul.innerHTML = '';
+  dndQueue.forEach((item, i) => {
+    const li = document.createElement('li');
+    li.className = 'dnd-item';
+    li.dataset.id = item.id;
+    li.innerHTML = `
+      <span class="dnd-handle" aria-label="Ziehen zum Sortieren">☰</span>
+      <span class="dnd-pos">${i + 1}.</span>
+      <span class="dnd-name">${escapeHtml(item.name)}</span>
+      <button class="dnd-remove" aria-label="Entfernen">✕</button>
+    `;
+    li.querySelector('.dnd-remove').addEventListener('click', () => {
+      socket.emit('removeFromQueue', { swimmerId: item.id });
+    });
+    li.querySelector('.dnd-handle').addEventListener('pointerdown', (e) => startDrag(e, item.id));
+    ul.appendChild(li);
+  });
+  if (dragging) {
+    const li = ul.querySelector(`li[data-id="${CSS.escape(dragging.id)}"]`);
+    if (li) li.classList.add('dragging');
+  }
+}
+
+function moveItem(from, to) {
+  const [item] = dndQueue.splice(from, 1);
+  dndQueue.splice(to, 0, item);
+  renderDndList();
+}
+
+function startDrag(e, id) {
+  e.preventDefault();
+  dragging = { id, pointerId: e.pointerId };
+  renderDndList();
+
+  function onMove(ev) {
+    if (!dragging || ev.pointerId !== dragging.pointerId) return;
+    const ul = document.getElementById('dndQueueList');
+    const items = Array.from(ul.querySelectorAll('.dnd-item'));
+    const currentIndex = dndQueue.findIndex((q) => q.id === dragging.id);
+    for (const other of items) {
+      if (other.dataset.id === dragging.id) continue;
+      const rect = other.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      const otherIndex = dndQueue.findIndex((q) => q.id === other.dataset.id);
+      if (ev.clientY < midY && otherIndex < currentIndex) {
+        moveItem(currentIndex, otherIndex);
+        break;
+      } else if (ev.clientY > midY && otherIndex > currentIndex) {
+        moveItem(currentIndex, otherIndex);
+        break;
+      }
+    }
+  }
+  function onUp(ev) {
+    if (!dragging || ev.pointerId !== dragging.pointerId) return;
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    document.removeEventListener('pointercancel', onUp);
+    socket.emit('reorderQueue', { order: dndQueue.map((q) => q.id) });
+    dragging = null;
+    renderDndList();
+  }
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+  document.addEventListener('pointercancel', onUp);
+}
+
+// ---- State-Updates ----
+
 socket.on('state', (state) => {
+  latestState = state;
   const lane = state.lane;
+
   document.getElementById('lapsNum').textContent = lane.laps;
+
+  const swimmingView = document.getElementById('swimmingView');
+  const startView = document.getElementById('startView');
+
   if (lane.swimmerName) {
-    document.getElementById('currentInfo').textContent = 'Es schwimmt:';
+    swimmingView.hidden = false;
+    startView.hidden = true;
+    manualFormOpen = false;
     document.getElementById('currentName').textContent = lane.swimmerName;
   } else {
-    document.getElementById('currentInfo').textContent = 'Bahn ist frei';
-    document.getElementById('currentName').textContent = '–';
+    swimmingView.hidden = true;
+    startView.hidden = false;
+    renderStartView(state);
   }
 
   if (lane.lockedUntil && lane.lockedUntil > Date.now()) {
@@ -86,6 +348,15 @@ socket.on('state', (state) => {
   } else {
     lockedUntil = 0;
     updateCooldownUI();
+  }
+
+  populateExistingSelect(document.getElementById('manualExistingSelect'), state, false);
+  populateExistingSelect(document.getElementById('editExistingSelect'), state, true);
+
+  document.getElementById('dndEmptyHint').style.display = state.queue.length === 0 ? 'block' : 'none';
+  if (queueEditorOpen && !dragging) {
+    dndQueue = state.queue.map((s) => ({ id: s.id, name: s.name }));
+    renderDndList();
   }
 });
 </script>
