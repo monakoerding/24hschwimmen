@@ -370,6 +370,7 @@ footer.hint{
   justify-content:center;
   padding: 24px 16px 64px;
 }
+.queue-editor-overlay[hidden]{ display:none; }
 
 .queue-editor-panel{
   width: 100%;
