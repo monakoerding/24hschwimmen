@@ -4,6 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>Zähler – 24 Stunden Schwimmen 2026</title>
+<script>
+// Design nach Tageszeit: tagsüber hell, nachts dunkel
+(function () {
+  var DAY_START_HOUR = 7;
+  var DAY_END_HOUR = 21;
+  function applyTheme() {
+    var hour = new Date().getHours();
+    var isDay = hour >= DAY_START_HOUR && hour < DAY_END_HOUR;
+    document.documentElement.dataset.theme = isDay ? 'light' : 'dark';
+  }
+  applyTheme();
+  setInterval(applyTheme, 60 * 1000);
+})();
+</script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,7 +26,7 @@
   <div class="lane-tag" style="margin-bottom:18px;"><span class="dot"></span>Zähler</div>
 
   <!-- Es schwimmt gerade jemand: Zähl-Button -->
-  <div id="swimmingView">
+  <div id="swimmingView" hidden>
     <div class="counter-current">Es schwimmt:</div>
     <div class="counter-name" id="currentName">–</div>
 
@@ -23,16 +37,18 @@
 
     <div class="cooldown" id="cooldownText"></div>
     <div class="key-hint">Oder beliebige Taste / externen Button drücken</div>
+
+    <button class="secondary finish-fallback-btn" id="finishNoReplacementBtn">Bahn ohne Nachfolger:in beenden</button>
   </div>
 
-  <!-- Bahn ist frei: nächste Person bestätigen, überspringen oder manuell starten -->
-  <div id="startView" hidden>
+  <!-- Nächste Person: bestätigen (Start oder Wechsel), überspringen oder manuell wählen -->
+  <div id="nextUpView">
     <div class="empty-hint" id="startEmptyHint">Warteliste ist leer.</div>
 
     <div class="start-confirm" id="startConfirm" hidden>
-      <div class="counter-current">Bahn ist frei</div>
+      <div class="counter-current" id="nextUpLabel">Bahn ist frei</div>
       <div class="counter-name" id="candidateName">–</div>
-      <div class="start-question">startet?</div>
+      <div class="start-question" id="startQuestion">startet?</div>
       <div class="btn-stack">
         <button class="primary" id="confirmYesBtn">Ja</button>
         <button class="secondary" id="confirmSkipBtn">Nein, überspringen, nächste:r</button>
@@ -125,6 +141,9 @@ function triggerCount() {
 }
 
 countBtn.addEventListener('click', triggerCount);
+document.getElementById('finishNoReplacementBtn').addEventListener('click', () => {
+  socket.emit('finishSwimmer');
+});
 
 // Erlaubt das Zählen per beliebiger Taste – z. B. über einen USB-Arcade-Button
 // oder Presenter-Clicker. Ignoriert Tastendrücke in Formularfeldern/Buttons
@@ -143,7 +162,10 @@ socket.on('countRejected', ({ remainingMs }) => {
   updateCooldownUI();
 });
 
-// ---- Nächste Person starten (Bahn frei) ----
+// ---- Nächste Person starten oder wechseln (funktioniert egal ob die Bahn
+// gerade frei ist oder noch jemand schwimmt - so kann man die/den Nächste:n
+// schon bestätigen, bevor die aktuelle Person fertig ist, und die Bahn
+// steht nie leer) ----
 
 let latestState = null;
 let manualFormOpen = false;
@@ -163,10 +185,13 @@ function populateExistingSelect(select, state, excludeQueued) {
   select.value = current;
 }
 
-function renderStartView(state) {
+function renderNextUp(state) {
+  const lane = state.lane;
   const emptyHint = document.getElementById('startEmptyHint');
   const confirm = document.getElementById('startConfirm');
   const manual = document.getElementById('startManual');
+  const label = document.getElementById('nextUpLabel');
+  const question = document.getElementById('startQuestion');
 
   if (manualFormOpen) {
     emptyHint.hidden = true;
@@ -177,12 +202,22 @@ function renderStartView(state) {
   manual.hidden = true;
 
   if (state.queue.length === 0) {
-    emptyHint.hidden = false;
     confirm.hidden = true;
+    emptyHint.hidden = false;
+    emptyHint.textContent = lane.swimmerName
+      ? 'Niemand in der Warteliste – bitte am Tablet jemanden anmelden, damit die Bahn nicht leer wird.'
+      : 'Warteliste ist leer.';
   } else {
     emptyHint.hidden = true;
     confirm.hidden = false;
     document.getElementById('candidateName').textContent = state.queue[0].name;
+    if (lane.swimmerName) {
+      label.textContent = 'Als Nächste:r bereit:';
+      question.textContent = 'jetzt wechseln?';
+    } else {
+      label.textContent = 'Bahn ist frei';
+      question.textContent = 'startet?';
+    }
   }
 }
 
@@ -194,11 +229,11 @@ document.getElementById('confirmSkipBtn').addEventListener('click', () => {
 });
 document.getElementById('confirmOtherBtn').addEventListener('click', () => {
   manualFormOpen = true;
-  if (latestState) renderStartView(latestState);
+  if (latestState) renderNextUp(latestState);
 });
 document.getElementById('manualCancelBtn').addEventListener('click', () => {
   manualFormOpen = false;
-  if (latestState) renderStartView(latestState);
+  if (latestState) renderNextUp(latestState);
 });
 document.getElementById('manualStartBtn').addEventListener('click', () => {
   const existingId = document.getElementById('manualExistingSelect').value;
@@ -326,20 +361,12 @@ socket.on('state', (state) => {
   const lane = state.lane;
 
   document.getElementById('lapsNum').textContent = lane.laps;
-
-  const swimmingView = document.getElementById('swimmingView');
-  const startView = document.getElementById('startView');
-
+  document.getElementById('swimmingView').hidden = !lane.swimmerName;
   if (lane.swimmerName) {
-    swimmingView.hidden = false;
-    startView.hidden = true;
-    manualFormOpen = false;
     document.getElementById('currentName').textContent = lane.swimmerName;
-  } else {
-    swimmingView.hidden = true;
-    startView.hidden = false;
-    renderStartView(state);
   }
+
+  renderNextUp(state);
 
   if (lane.lockedUntil && lane.lockedUntil > Date.now()) {
     lockedUntil = lane.lockedUntil;

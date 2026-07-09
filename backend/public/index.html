@@ -4,6 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Anmeldung – 24 Stunden Schwimmen 2026</title>
+<script>
+// Design nach Tageszeit: tagsüber hell, nachts dunkel
+(function () {
+  var DAY_START_HOUR = 7;
+  var DAY_END_HOUR = 21;
+  function applyTheme() {
+    var hour = new Date().getHours();
+    var isDay = hour >= DAY_START_HOUR && hour < DAY_END_HOUR;
+    document.documentElement.dataset.theme = isDay ? 'light' : 'dark';
+  }
+  applyTheme();
+  setInterval(applyTheme, 60 * 1000);
+})();
+</script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -41,11 +55,18 @@
       <div style="margin-top:12px;">
         <div id="laneStatus" class="empty-hint">Bahn ist frei.</div>
       </div>
-      <button class="primary" id="laneActionBtn" style="margin-top:12px;">Nächste/n Schwimmer/in starten</button>
+    </div>
+
+    <div class="card reset-card">
+      <div class="eyebrow" style="margin-bottom:10px;">Gesamt-Reset (nur vor dem Event!)</div>
+      <label for="resetPasswordInput">Passwort</label>
+      <input type="password" id="resetPasswordInput" placeholder="Passwort" maxlength="40">
+      <button class="danger-btn" id="resetAllBtn">Alles zurücksetzen</button>
+      <div class="reset-feedback" id="resetFeedback"></div>
     </div>
 
   </div>
-  <footer class="hint">Zähler: /counter.html &nbsp;·&nbsp; Fernseher: /lane.html</footer>
+  <footer class="hint">Bahn wird am Zähler-Handy gestartet/gewechselt: /counter.html &nbsp;·&nbsp; Fernseher: /lane.html</footer>
 </div>
 <div class="conn-badge" id="connBadge">verbinde…</div>
 
@@ -74,15 +95,18 @@ document.getElementById('selectExistingBtn').addEventListener('click', () => {
   document.getElementById('existingSelect').value = '';
 });
 
-document.getElementById('laneActionBtn').addEventListener('click', () => {
-  const state = latestState;
-  if (!state) return;
-  if (state.lane.currentSwimmerId) {
-    // Aktuellen Schwimmer beenden -> Bahn wird frei
-    socket.emit('finishSwimmer');
-  } else {
-    socket.emit('assignNext');
-  }
+document.getElementById('resetAllBtn').addEventListener('click', () => {
+  const password = document.getElementById('resetPasswordInput').value;
+  const feedback = document.getElementById('resetFeedback');
+  feedback.textContent = '';
+  if (!password) { alert('Bitte das Passwort eingeben.'); return; }
+  if (!confirm('Wirklich ALLES zurücksetzen? Schwimmer:innen, Warteliste, Bahn und Gesamtstrecke werden gelöscht. Das kann nicht rückgängig gemacht werden.')) return;
+  socket.emit('resetAll', { password });
+  document.getElementById('resetPasswordInput').value = '';
+});
+
+socket.on('resetRejected', () => {
+  document.getElementById('resetFeedback').textContent = 'Falsches Passwort.';
 });
 
 function render(state) {
@@ -120,18 +144,14 @@ function render(state) {
   });
   select.value = currentSelection;
 
-  // Bahn
+  // Bahn (nur Anzeige - Starten/Wechseln passiert am Zähler-Handy)
   const lane = state.lane;
   const statusEl = document.getElementById('laneStatus');
-  const btn = document.getElementById('laneActionBtn');
+  const totalLine = `Gesamtstrecke Staffel: ${state.totalDistanceM.toLocaleString('de-DE')} m (${state.totalLaps.toLocaleString('de-DE')} Bahnen)`;
   if (lane.swimmerName) {
-    statusEl.innerHTML = `Es schwimmt: <strong>${escapeHtml(lane.swimmerName)}</strong><br>Bahnen: ${lane.laps} (${lane.distanceM} m)`;
-    btn.textContent = 'Schwimmer/in beenden';
-    btn.disabled = false;
+    statusEl.innerHTML = `Es schwimmt: <strong>${escapeHtml(lane.swimmerName)}</strong><br>Bahnen diese Runde: ${lane.laps} (${lane.distanceM} m)<br>${totalLine}`;
   } else {
-    statusEl.textContent = 'Bahn ist frei.';
-    btn.textContent = 'Nächste/n Schwimmer/in starten';
-    btn.disabled = state.queue.length === 0;
+    statusEl.innerHTML = `Bahn ist frei.<br>${totalLine}`;
   }
 }
 

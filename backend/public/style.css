@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
 
 :root{
+  /* Nacht-Design (Standard) - wird von theme.js je nach Tageszeit gesetzt */
   --deep: #0B2545;
   --ink: #0E2F3D;
   --panel: #123549;
@@ -10,8 +11,31 @@
   --lane: #2EC4C6;
   --lane-dim: #1A5758;
   --good: #6BD08A;
+  --bad: #FF6B4A;
   --line: rgba(244,247,246,0.10);
+  --tint-1: rgba(255,255,255,0.05);
+  --tint-2: rgba(255,255,255,0.08);
+  --scrim: rgba(6,16,23,0.85);
   color-scheme: dark;
+}
+
+:root[data-theme="light"]{
+  /* Tag-Design */
+  --deep: #DCEAF0;
+  --ink: #FFFFFF;
+  --panel: #FFFFFF;
+  --panel-2: #F3F9FB;
+  --foam: #0B2545;
+  --slate: #56707E;
+  --lane: #0E8A93;
+  --lane-dim: #BFEAEA;
+  --good: #1F9D55;
+  --bad: #C6402A;
+  --line: rgba(11,37,69,0.12);
+  --tint-1: rgba(11,37,69,0.04);
+  --tint-2: rgba(11,37,69,0.07);
+  --scrim: rgba(6,16,23,0.55);
+  color-scheme: light;
 }
 
 *{ box-sizing: border-box; }
@@ -94,7 +118,7 @@ label{
 
 input[type="text"]{
   width: 100%;
-  background: rgba(255,255,255,0.05);
+  background: var(--tint-1);
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 14px 14px;
@@ -109,7 +133,7 @@ input[type="text"]:focus, button:focus, select:focus{
 
 select{
   width: 100%;
-  background: rgba(255,255,255,0.05);
+  background: var(--tint-1);
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 14px;
@@ -130,7 +154,7 @@ button{
 }
 button:active{ transform: scale(0.98); }
 button.primary{ background: var(--good); color: #063017; width: 100%; }
-button.secondary{ background: rgba(255,255,255,0.08); color: var(--foam); width: 100%; }
+button.secondary{ background: var(--tint-2); color: var(--foam); width: 100%; }
 button:disabled{ opacity: .4; cursor: not-allowed; }
 
 .lane-tag{
@@ -168,6 +192,10 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
 
 .empty-hint{ color: var(--slate); font-size: 14px; padding: 8px 0; }
 
+.reset-card{ margin-top: 40px; opacity: 0.85; }
+.reset-card .danger-btn{ background: var(--tint-2); color: var(--bad); width: 100%; }
+.reset-feedback{ color: var(--bad); font-size: 13px; margin-top: 8px; min-height: 18px; }
+
 /* ---- Fernseher-Ansicht ---- */
 .tv{
   min-height: 100vh;
@@ -196,6 +224,29 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
   font-family:'JetBrains Mono', monospace;
   color: var(--slate);
   font-size: 20px;
+}
+
+.tv-total{
+  text-align:center;
+  margin-top: 12px;
+}
+.tv-total-label{
+  color: var(--slate);
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 4px;
+}
+.tv-total-value{
+  font-family:'Bebas Neue', sans-serif;
+  font-size: clamp(64px, 13vw, 160px);
+  line-height: 1;
+  color: var(--lane);
+}
+.tv-total-sub{
+  color: var(--slate);
+  font-size: 18px;
+  margin-top: 4px;
 }
 
 .tv-swimmer{
@@ -295,6 +346,17 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
   padding: 8px;
 }
 
+.finish-fallback-btn{
+  width: auto;
+  margin-top: 14px;
+  background: none;
+  color: var(--slate);
+  text-decoration: underline;
+  padding: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 .counter-current{
   color: var(--slate);
   font-size: 16px;
@@ -353,17 +415,17 @@ footer.hint{
   font-size: 11px;
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(255,255,255,0.08);
+  background: var(--tint-2);
   color: var(--slate);
 }
 .conn-badge.ok{ color: var(--good); }
-.conn-badge.bad{ color: #FF6B4A; }
+.conn-badge.bad{ color: var(--bad); }
 
 /* ---- Warteliste bearbeiten (Overlay auf dem Zähler-Handy) ---- */
 .queue-editor-overlay{
   position: fixed;
   inset: 0;
-  background: rgba(6,16,23,0.85);
+  background: var(--scrim);
   z-index: 50;
   overflow-y: auto;
   display:flex;

@@ -26,12 +26,16 @@ const io = new Server(server, {
 const DB_FILE = path.join(__dirname, 'state.json');
 const LOCKOUT_MS = 10000; // Sperrzeitraum nach einer gezählten Bahn
 const LANE_LENGTH_M = 25;
+// Passwort für den Gesamt-Reset vor dem Event - bewusst simpel und offen im Code,
+// nur gedacht um ein versehentliches Antippen zu verhindern, nicht als echter Schutz.
+const RESET_PASSWORD = 'frosch';
 
 function defaultState() {
   return {
     swimmers: [], // { id, name, cry }
     queue: [], // Array von swimmerId, feste Reihenfolge nach Anmeldung
     lane: { currentSwimmerId: null, laps: 0, lastCountAt: 0 },
+    totalLaps: 0, // zählt über die ganze Staffel, wird nie beim Schwimmerwechsel zurückgesetzt
   };
 }
 
@@ -46,6 +50,7 @@ function loadState() {
         swimmers: raw.swimmers || [],
         queue: raw.queue || [],
         lane: { ...base.lane, ...oldLane },
+        totalLaps: raw.totalLaps || 0,
       };
     } catch (e) {
       console.error('state.json konnte nicht gelesen werden, starte mit leerem Zustand.', e);
@@ -86,6 +91,8 @@ function publicState() {
       // Für die Zähler-Ansicht: wie lange ist die Sperre noch aktiv (serverseitig berechnet)
       lockedUntil: lane.lastCountAt ? lane.lastCountAt + LOCKOUT_MS : 0,
     },
+    totalLaps: state.totalLaps,
+    totalDistanceM: state.totalLaps * LANE_LENGTH_M,
     laneLengthM: LANE_LENGTH_M,
   };
 }
@@ -122,11 +129,13 @@ io.on('connection', (socket) => {
     broadcast();
   });
 
-  // Nächste Person aus der Warteliste in die Bahn setzen
+  // Nächste Person aus der Warteliste in die Bahn setzen. Funktioniert auch,
+  // während schon jemand schwimmt (dann ist es ein direkter Wechsel ohne
+  // Lücke) - so ist die Bahn nie leer, weil man die/den Nächste/n schon
+  // bestätigen kann, bevor die aktuelle Person fertig ist.
   socket.on('assignNext', () => {
-    const l = state.lane;
-    if (l.currentSwimmerId) return; // Bahn muss erst frei sein
     if (state.queue.length === 0) return;
+    const l = state.lane;
     const nextId = state.queue.shift();
     l.currentSwimmerId = nextId;
     l.laps = 0;
@@ -144,10 +153,10 @@ io.on('connection', (socket) => {
   });
 
   // Person direkt (ohne die Warteliste zu verändern) in die Bahn setzen -
-  // z. B. wenn spontan jemand anderes als geplant schwimmt
+  // z. B. wenn spontan jemand anderes als geplant schwimmt. Funktioniert auch
+  // als Wechsel, während schon jemand schwimmt.
   socket.on('startDirect', ({ name, cry, swimmerId }) => {
     const l = state.lane;
-    if (l.currentSwimmerId) return; // Bahn muss erst frei sein
     let id = swimmerId;
     if (id) {
       if (!getSwimmer(id)) return;
@@ -197,13 +206,27 @@ io.on('connection', (socket) => {
     }
     l.laps += 1;
     l.lastCountAt = now;
+    state.totalLaps += 1;
     broadcast();
   });
 
   // Manuelle Korrektur, falls sich jemand vertippt/verzählt hat
   socket.on('adjustLaps', ({ delta }) => {
     const l = state.lane;
+    const before = l.laps;
     l.laps = Math.max(0, l.laps + delta);
+    state.totalLaps = Math.max(0, state.totalLaps + (l.laps - before));
+    broadcast();
+  });
+
+  // Gesamt-Reset vor dem Event (z. B. nach dem Testen) - setzt alles auf null:
+  // Schwimmer, Warteliste, Bahn und die Gesamtstrecke der Staffel.
+  socket.on('resetAll', ({ password }) => {
+    if (password !== RESET_PASSWORD) {
+      socket.emit('resetRejected');
+      return;
+    }
+    state = defaultState();
     broadcast();
   });
 });
