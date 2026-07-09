@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bahn – 24 Stunden Schwimmen 2026</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="tv">
+  <div class="tv-header">
+    <div>
+      <div class="tv-lane-label">SCHWIMMBAHN</div>
+      <div class="tv-event-label">Uhlenköper-Camp · 24 Stunden Schwimmen 2026</div>
+    </div>
+    <div class="tv-clock mono" id="clock">--:--:--</div>
+  </div>
+
+  <div class="tv-swimmer">
+    <div id="swimmerBlock">
+      <div class="idle">Bahn ist frei</div>
+    </div>
+  </div>
+
+  <div class="tv-stats">
+    <div class="stat-box">
+      <div class="label">Bahnen (à 25 m)</div>
+      <div class="value" id="lapsValue">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="label">Strecke</div>
+      <div class="value" id="distValue">0 m</div>
+    </div>
+  </div>
+
+  <div class="waterline" style="margin-top:28px;"></div>
+</div>
+<div class="conn-badge" id="connBadge">verbinde…</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+const socket = io();
+const connBadge = document.getElementById('connBadge');
+socket.on('connect', () => { connBadge.textContent = 'verbunden'; connBadge.className = 'conn-badge ok'; });
+socket.on('disconnect', () => { connBadge.textContent = 'getrennt'; connBadge.className = 'conn-badge bad'; });
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+socket.on('state', (state) => {
+  const lane = state.lane;
+  const block = document.getElementById('swimmerBlock');
+  if (lane.swimmerName) {
+    block.innerHTML = `
+      <div class="status">Es schwimmt:</div>
+      <div class="name">${escapeHtml(lane.swimmerName)}</div>
+      ${lane.swimmerCry ? `<div class="cry">${escapeHtml(lane.swimmerName)} – ${escapeHtml(lane.swimmerCry)}</div>` : ''}
+    `;
+  } else {
+    block.innerHTML = `<div class="idle">Bahn ist frei</div>`;
+  }
+  document.getElementById('lapsValue').textContent = lane.laps;
+  document.getElementById('distValue').textContent = lane.distanceM + ' m';
+});
+
+function tickClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('de-DE');
+}
+setInterval(tickClock, 1000);
+tickClock();
+</script>
+</body>
+</html>

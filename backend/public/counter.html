@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Zähler – 24 Stunden Schwimmen 2026</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="counter-page">
+  <div class="eyebrow" style="margin-bottom:6px;">Uhlenköper-Camp · 24 Stunden Schwimmen 2026</div>
+  <div class="lane-tag" style="margin-bottom:18px;"><span class="dot"></span>Zähler</div>
+
+  <div class="counter-current" id="currentInfo">Bahn ist frei</div>
+  <div class="counter-name" id="currentName">–</div>
+
+  <button class="count-btn" id="countBtn">
+    <span class="big-num" id="lapsNum">0</span>
+    BAHN GEZÄHLT
+  </button>
+
+  <div class="cooldown" id="cooldownText"></div>
+  <div class="key-hint">Oder beliebige Taste / externen Button drücken</div>
+</div>
+<div class="conn-badge" id="connBadge">verbinde…</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+const socket = io();
+const connBadge = document.getElementById('connBadge');
+socket.on('connect', () => { connBadge.textContent = 'verbunden'; connBadge.className = 'conn-badge ok'; });
+socket.on('disconnect', () => { connBadge.textContent = 'getrennt'; connBadge.className = 'conn-badge bad'; });
+
+const countBtn = document.getElementById('countBtn');
+const cooldownText = document.getElementById('cooldownText');
+let lockedUntil = 0;
+let cooldownTimer = null;
+
+function updateCooldownUI() {
+  const remaining = lockedUntil - Date.now();
+  if (remaining > 0) {
+    countBtn.disabled = true;
+    cooldownText.textContent = 'Gesperrt: noch ' + (remaining / 1000).toFixed(1) + ' s';
+  } else {
+    countBtn.disabled = false;
+    cooldownText.textContent = '';
+    if (cooldownTimer) { clearInterval(cooldownTimer); cooldownTimer = null; }
+  }
+}
+
+function triggerCount() {
+  if (countBtn.disabled) return;
+  socket.emit('countLap');
+}
+
+countBtn.addEventListener('click', triggerCount);
+
+// Erlaubt das Zählen per beliebiger Taste – z. B. über einen USB-Arcade-Button
+// oder Presenter-Clicker, der einen Tastendruck simuliert. Welche Taste genau
+// gesendet wird, ist egal.
+document.addEventListener('keydown', () => {
+  triggerCount();
+});
+
+socket.on('countRejected', ({ remainingMs }) => {
+  lockedUntil = Date.now() + remainingMs;
+  if (!cooldownTimer) cooldownTimer = setInterval(updateCooldownUI, 100);
+  updateCooldownUI();
+});
+
+socket.on('state', (state) => {
+  const lane = state.lane;
+  document.getElementById('lapsNum').textContent = lane.laps;
+  if (lane.swimmerName) {
+    document.getElementById('currentInfo').textContent = 'Es schwimmt:';
+    document.getElementById('currentName').textContent = lane.swimmerName;
+  } else {
+    document.getElementById('currentInfo').textContent = 'Bahn ist frei';
+    document.getElementById('currentName').textContent = '–';
+  }
+
+  if (lane.lockedUntil && lane.lockedUntil > Date.now()) {
+    lockedUntil = lane.lockedUntil;
+    if (!cooldownTimer) cooldownTimer = setInterval(updateCooldownUI, 100);
+    updateCooldownUI();
+  } else {
+    lockedUntil = 0;
+    updateCooldownUI();
+  }
+});
+</script>
+</body>
+</html>

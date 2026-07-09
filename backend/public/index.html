@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Anmeldung – 24 Stunden Schwimmen 2026</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page">
+  <div class="container">
+    <div class="eyebrow">Uhlenköper-Camp · 24 Stunden Schwimmen 2026</div>
+    <h1 class="title">Anmeldung &amp; Übersicht</h1>
+
+    <div class="card">
+      <div class="eyebrow" style="margin-bottom:10px;">Neu hier?</div>
+      <label for="nameInput">Dein Name</label>
+      <input type="text" id="nameInput" placeholder="z. B. Mona" maxlength="40">
+      <label for="cryInput">Kampfschrei (optional)</label>
+      <input type="text" id="cryInput" placeholder="z. B. Schneller als jeder Aal im Ozean" maxlength="80">
+      <button class="primary" id="registerBtn">Zur Warteliste anmelden</button>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow" style="margin-bottom:10px;">Schon mal geschwommen?</div>
+      <label for="existingSelect">Aus der Liste wählen</label>
+      <select id="existingSelect">
+        <option value="">– Namen auswählen –</option>
+      </select>
+      <button class="secondary" id="selectExistingBtn">Wieder zur Warteliste anmelden</button>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow" style="margin-bottom:10px;">Warteliste</div>
+      <ul class="queue-list" id="queueList"></ul>
+      <div class="empty-hint" id="queueEmptyHint">Noch niemand in der Warteliste.</div>
+    </div>
+
+    <div class="card" id="laneCard">
+      <span class="lane-tag"><span class="dot"></span>Bahn</span>
+      <div style="margin-top:12px;">
+        <div id="laneStatus" class="empty-hint">Bahn ist frei.</div>
+      </div>
+      <button class="primary" id="laneActionBtn" style="margin-top:12px;">Nächste/n Schwimmer/in starten</button>
+    </div>
+
+  </div>
+  <footer class="hint">Zähler: /counter.html &nbsp;·&nbsp; Fernseher: /lane.html</footer>
+</div>
+<div class="conn-badge" id="connBadge">verbinde…</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+const socket = io();
+const connBadge = document.getElementById('connBadge');
+socket.on('connect', () => { connBadge.textContent = 'verbunden'; connBadge.className = 'conn-badge ok'; });
+socket.on('disconnect', () => { connBadge.textContent = 'getrennt'; connBadge.className = 'conn-badge bad'; });
+
+let latestState = null;
+
+document.getElementById('registerBtn').addEventListener('click', () => {
+  const name = document.getElementById('nameInput').value.trim();
+  const cry = document.getElementById('cryInput').value.trim();
+  if (!name) { alert('Bitte einen Namen eintragen.'); return; }
+  socket.emit('register', { name, cry });
+  document.getElementById('nameInput').value = '';
+  document.getElementById('cryInput').value = '';
+});
+
+document.getElementById('selectExistingBtn').addEventListener('click', () => {
+  const id = document.getElementById('existingSelect').value;
+  if (!id) { alert('Bitte einen Namen auswählen.'); return; }
+  socket.emit('selectExisting', { swimmerId: id });
+  document.getElementById('existingSelect').value = '';
+});
+
+document.getElementById('laneActionBtn').addEventListener('click', () => {
+  const state = latestState;
+  if (!state) return;
+  if (state.lane.currentSwimmerId) {
+    // Aktuellen Schwimmer beenden -> Bahn wird frei
+    socket.emit('finishSwimmer');
+  } else {
+    socket.emit('assignNext');
+  }
+});
+
+function render(state) {
+  latestState = state;
+
+  // Warteliste
+  const queueList = document.getElementById('queueList');
+  const emptyHint = document.getElementById('queueEmptyHint');
+  queueList.innerHTML = '';
+  if (state.queue.length === 0) {
+    emptyHint.style.display = 'block';
+  } else {
+    emptyHint.style.display = 'none';
+    state.queue.forEach((swimmer, i) => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="queue-pos">${i + 1}.</span><span class="queue-name">${escapeHtml(swimmer.name)}</span>`;
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'queue-remove';
+      removeBtn.textContent = 'entfernen';
+      removeBtn.addEventListener('click', () => socket.emit('removeFromQueue', { swimmerId: swimmer.id }));
+      li.appendChild(removeBtn);
+      queueList.appendChild(li);
+    });
+  }
+
+  // Bestehende Schwimmer-Auswahl
+  const select = document.getElementById('existingSelect');
+  const currentSelection = select.value;
+  select.innerHTML = '<option value="">– Namen auswählen –</option>';
+  state.swimmers.forEach((s) => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.name;
+    select.appendChild(opt);
+  });
+  select.value = currentSelection;
+
+  // Bahn
+  const lane = state.lane;
+  const statusEl = document.getElementById('laneStatus');
+  const btn = document.getElementById('laneActionBtn');
+  if (lane.swimmerName) {
+    statusEl.innerHTML = `Es schwimmt: <strong>${escapeHtml(lane.swimmerName)}</strong><br>Bahnen: ${lane.laps} (${lane.distanceM} m)`;
+    btn.textContent = 'Schwimmer/in beenden';
+    btn.disabled = false;
+  } else {
+    statusEl.textContent = 'Bahn ist frei.';
+    btn.textContent = 'Nächste/n Schwimmer/in starten';
+    btn.disabled = state.queue.length === 0;
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+socket.on('state', render);
+</script>
+</body>
+</html>
