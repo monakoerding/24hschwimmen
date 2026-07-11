@@ -250,6 +250,7 @@ io.on('connection', (socket) => {
     }
     state = defaultState();
     broadcast();
+    io.emit('stopCelebration');
   });
 
   // Zustand aus einer hochgeladenen Sicherungsdatei wiederherstellen

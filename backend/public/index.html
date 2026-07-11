@@ -22,18 +22,9 @@
 </head>
 <body>
 <div class="page">
-  <div class="container">
+  <div class="container signup-page">
     <div class="eyebrow">Uhlenköper-Camp · 24 Stunden Schwimmen 2026</div>
-    <h1 class="title">Anmeldung &amp; Übersicht</h1>
-
-    <div class="card">
-      <div class="eyebrow" style="margin-bottom:10px;">Neu hier?</div>
-      <label for="nameInput">Dein Name</label>
-      <input type="text" id="nameInput" placeholder="z. B. Mona" maxlength="40">
-      <label for="cryInput">Kampfschrei (optional)</label>
-      <input type="text" id="cryInput" placeholder="z. B. Schneller als jeder Aal im Ozean" maxlength="80">
-      <button class="primary" id="registerBtn">Zur Warteliste anmelden</button>
-    </div>
+    <h1 class="title">Anmeldung</h1>
 
     <div class="card">
       <div class="eyebrow" style="margin-bottom:10px;">Schon mal geschwommen?</div>
@@ -45,16 +36,12 @@
     </div>
 
     <div class="card">
-      <div class="eyebrow" style="margin-bottom:10px;">Warteliste</div>
-      <ul class="queue-list" id="queueList"></ul>
-      <div class="empty-hint" id="queueEmptyHint">Noch niemand in der Warteliste.</div>
-    </div>
-
-    <div class="card" id="laneCard">
-      <span class="lane-tag"><span class="dot"></span>Bahn</span>
-      <div style="margin-top:12px;">
-        <div id="laneStatus" class="empty-hint">Bahn ist frei.</div>
-      </div>
+      <div class="eyebrow" style="margin-bottom:10px;">Neu hier?</div>
+      <label for="nameInput">Dein Name</label>
+      <input type="text" id="nameInput" placeholder="z. B. Mona" maxlength="40">
+      <label for="cryInput">Kampfschrei (optional)</label>
+      <input type="text" id="cryInput" placeholder="z. B. Schneller als jeder Aal im Ozean" maxlength="80">
+      <button class="primary" id="registerBtn">Zur Warteliste anmelden</button>
     </div>
 
   </div>
@@ -68,8 +55,6 @@ const socket = io();
 const connBadge = document.getElementById('connBadge');
 socket.on('connect', () => { connBadge.textContent = 'verbunden'; connBadge.className = 'conn-badge ok'; });
 socket.on('disconnect', () => { connBadge.textContent = 'getrennt'; connBadge.className = 'conn-badge bad'; });
-
-let latestState = null;
 
 document.getElementById('registerBtn').addEventListener('click', () => {
   const name = document.getElementById('nameInput').value.trim();
@@ -88,28 +73,6 @@ document.getElementById('selectExistingBtn').addEventListener('click', () => {
 });
 
 function render(state) {
-  latestState = state;
-
-  // Warteliste
-  const queueList = document.getElementById('queueList');
-  const emptyHint = document.getElementById('queueEmptyHint');
-  queueList.innerHTML = '';
-  if (state.queue.length === 0) {
-    emptyHint.style.display = 'block';
-  } else {
-    emptyHint.style.display = 'none';
-    state.queue.forEach((swimmer, i) => {
-      const li = document.createElement('li');
-      li.innerHTML = `<span class="queue-pos">${i + 1}.</span><span class="queue-name">${escapeHtml(swimmer.name)}</span>`;
-      const removeBtn = document.createElement('button');
-      removeBtn.className = 'queue-remove';
-      removeBtn.textContent = 'entfernen';
-      removeBtn.addEventListener('click', () => socket.emit('removeFromQueue', { swimmerId: swimmer.id }));
-      li.appendChild(removeBtn);
-      queueList.appendChild(li);
-    });
-  }
-
   // Bestehende Schwimmer-Auswahl
   const select = document.getElementById('existingSelect');
   const currentSelection = select.value;
@@ -121,22 +84,6 @@ function render(state) {
     select.appendChild(opt);
   });
   select.value = currentSelection;
-
-  // Bahn (nur Anzeige - Starten/Wechseln passiert am Zähler-Handy)
-  const lane = state.lane;
-  const statusEl = document.getElementById('laneStatus');
-  const totalLine = `Gesamtstrecke Staffel: ${state.totalDistanceM.toLocaleString('de-DE')} m (${state.totalLaps.toLocaleString('de-DE')} Bahnen)`;
-  if (lane.swimmerName) {
-    statusEl.innerHTML = `Es schwimmt: <strong>${escapeHtml(lane.swimmerName)}</strong><br>Bahnen diese Runde: ${lane.laps} (${lane.distanceM} m)<br>${totalLine}`;
-  } else {
-    statusEl.innerHTML = `Bahn ist frei.<br>${totalLine}`;
-  }
-}
-
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
 }
 
 socket.on('state', render);

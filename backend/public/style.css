@@ -171,26 +171,15 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
 }
 .lane-tag .dot{ width:9px; height:9px; border-radius:50%; background: var(--lane); }
 
-.queue-list{ list-style:none; margin:0; padding:0; }
-.queue-list li{
-  display:flex; align-items:center; justify-content:space-between;
-  padding: 10px 4px;
-  border-bottom: 1px solid var(--line);
-}
-.queue-list li:last-child{ border-bottom:none; }
-.queue-pos{
-  font-family:'JetBrains Mono', monospace;
-  color: var(--slate);
-  width: 28px;
-  display:inline-block;
-}
-.queue-name{ flex:1; margin-left:6px; }
-.queue-remove{
-  background: none; border:none; color: var(--slate);
-  font-size: 13px; padding: 4px 8px; width:auto;
-}
-
 .empty-hint{ color: var(--slate); font-size: 14px; padding: 8px 0; }
+
+/* ---- Anmeldung (Tablet) - bewusst groß und einfach bedienbar ---- */
+.signup-page h1.title{ font-size: clamp(32px, 7vw, 52px); }
+.signup-page .eyebrow{ font-size: 14px; }
+.signup-page .card{ padding: 26px; margin-bottom: 20px; }
+.signup-page label{ font-size: 16px; margin-bottom: 8px; }
+.signup-page input[type="text"], .signup-page select{ font-size: 19px; padding: 18px; margin-bottom: 18px; }
+.signup-page button{ font-size: 19px; padding: 18px 20px; }
 
 .danger-btn{ background: var(--tint-2); color: var(--bad); width: 100%; }
 .reset-feedback{ color: var(--bad); font-size: 13px; margin-top: 8px; min-height: 18px; }
@@ -238,7 +227,7 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
 }
 .tv-total-value{
   font-family:'Bebas Neue', sans-serif;
-  font-size: clamp(64px, 13vw, 160px);
+  font-size: clamp(56px, 12vw, 140px);
   line-height: 1;
   color: var(--lane);
 }
@@ -259,7 +248,7 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
 }
 .tv-swimmer .name{
   font-family:'Bebas Neue', sans-serif;
-  font-size: clamp(48px, 9vw, 108px);
+  font-size: clamp(44px, 8vw, 96px);
   line-height: 1;
   color: var(--foam);
 }
@@ -298,7 +287,7 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
 }
 .stat-box .value{
   font-family:'Bebas Neue', sans-serif;
-  font-size: clamp(40px, 6vw, 72px);
+  font-size: clamp(36px, 5.5vw, 64px);
   color: var(--lane);
   line-height: 1;
 }
@@ -328,7 +317,7 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
   padding-left: 32px;
   display:flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
 }
 .tv-queue-title{
   color: var(--slate);
@@ -352,6 +341,104 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
 }
 .tv-queue-list li:first-child{ color: var(--lane); }
 .tv-queue-list li:last-child{ border-bottom: none; }
+
+.tv-progress{
+  margin-top: 28px;
+  flex: 1;
+  min-height: 160px;
+  display:flex;
+  flex-direction: column;
+}
+.tv-progress-title{
+  color: var(--slate);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 16px;
+}
+.tv-progress-wrap{
+  position: relative;
+  flex: 1;
+}
+.tv-progress-track{
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 12px;
+  background: var(--tint-1);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.tv-progress-fill{
+  position: absolute;
+  left: 0; bottom: 0; width: 100%;
+  background: linear-gradient(0deg, var(--lane), var(--lane-dim));
+}
+.tv-progress-marker{
+  position: absolute;
+  left: 22px;
+  transform: translateY(50%);
+  display:flex;
+  align-items:center;
+  gap: 8px;
+}
+.tv-progress-marker-line{
+  width: 16px;
+  height: 2px;
+  background: var(--slate);
+  opacity: 0.6;
+}
+.tv-progress-marker-label{
+  font-size: 12px;
+  color: var(--slate);
+  white-space: nowrap;
+}
+.tv-progress-current{
+  margin-top: 12px;
+  font-size: 16px;
+  color: var(--lane);
+  text-align: center;
+}
+
+.tv-leaderboard{
+  margin-top: 14px;
+}
+.tv-leaderboard-title{
+  color: var(--slate);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+  text-align: center;
+}
+.tv-leaderboard-list{
+  display:flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.tv-leaderboard-item{
+  background: linear-gradient(180deg, var(--panel), var(--ink));
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 7px 16px;
+  text-align: center;
+  min-width: 130px;
+}
+.tv-leaderboard-item.first{ border-color: var(--lane); }
+.tv-leaderboard-item .rank{
+  font-family:'Bebas Neue', sans-serif;
+  font-size: 19px;
+  color: var(--lane);
+}
+.tv-leaderboard-item .name{
+  font-weight: 700;
+  font-size: 14px;
+  margin: 1px 0;
+}
+.tv-leaderboard-item .sub{
+  color: var(--slate);
+  font-size: 11px;
+}
 
 #celebrationCanvas{
   position: fixed;

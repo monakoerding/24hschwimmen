@@ -60,10 +60,23 @@
       <div class="tv-queue-title">Als nächstes dran:</div>
       <ol class="tv-queue-list" id="tvQueueList"></ol>
       <div class="empty-hint" id="tvQueueEmptyHint">Warteliste ist leer.</div>
+
+      <div class="tv-progress">
+        <div class="tv-progress-title">Fortschritt</div>
+        <div class="tv-progress-wrap" id="tvProgressWrap">
+          <div class="tv-progress-track"><div class="tv-progress-fill" id="tvProgressFill"></div></div>
+        </div>
+        <div class="tv-progress-current mono" id="tvProgressCurrent">0 km</div>
+      </div>
     </div>
   </div>
 
-  <div class="waterline" style="margin-top:28px;"></div>
+  <div class="tv-leaderboard">
+    <div class="tv-leaderboard-title">Bestenliste</div>
+    <div class="tv-leaderboard-list" id="tvLeaderboardList"></div>
+  </div>
+
+  <div class="waterline" style="margin-top:20px;"></div>
 </div>
 <canvas id="celebrationCanvas"></canvas>
 <div class="conn-badge" id="connBadge">verbinde…</div>
@@ -97,6 +110,51 @@ function renderQueue(state) {
   }
 }
 
+// Bekannte Strecken als Etappenziele auf dem Weg zur Gesamtstrecke
+const CHECKPOINTS = [
+  { label: 'Uelzen', km: 5 },
+  { label: 'Ebstorf', km: 8 },
+  { label: 'Halbmarathon', km: 21.1 },
+  { label: 'Ärmelkanal', km: 34 },
+  { label: 'Marathon', km: 42.2 },
+];
+
+function renderProgress(state) {
+  const km = state.totalDistanceM / 1000;
+  const maxKm = Math.max(CHECKPOINTS[CHECKPOINTS.length - 1].km * 1.15, km * 1.08, 1);
+
+  document.getElementById('tvProgressCurrent').textContent =
+    km.toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' km';
+
+  document.getElementById('tvProgressFill').style.height = Math.min(100, (km / maxKm) * 100) + '%';
+
+  const wrap = document.getElementById('tvProgressWrap');
+  wrap.querySelectorAll('.tv-progress-marker').forEach((el) => el.remove());
+  CHECKPOINTS.forEach((cp) => {
+    const pct = Math.min(100, (cp.km / maxKm) * 100);
+    const marker = document.createElement('div');
+    marker.className = 'tv-progress-marker';
+    marker.style.bottom = pct + '%';
+    marker.innerHTML = `<span class="tv-progress-marker-line"></span><span class="tv-progress-marker-label">${escapeHtml(cp.label)} (${cp.km} km)</span>`;
+    wrap.appendChild(marker);
+  });
+}
+
+function renderLeaderboard(state) {
+  const list = document.getElementById('tvLeaderboardList');
+  const rows = state.swimmers
+    .map((s) => ({ name: s.name, laps: s.totalLaps || 0, distanceM: (s.totalLaps || 0) * state.laneLengthM }))
+    .sort((a, b) => b.laps - a.laps)
+    .slice(0, 5);
+  list.innerHTML = '';
+  rows.forEach((r, i) => {
+    const item = document.createElement('div');
+    item.className = 'tv-leaderboard-item' + (i === 0 ? ' first' : '');
+    item.innerHTML = `<div class="rank">${i + 1}.</div><div class="name">${escapeHtml(r.name)}</div><div class="sub">${r.distanceM.toLocaleString('de-DE')} m</div>`;
+    list.appendChild(item);
+  });
+}
+
 socket.on('state', (state) => {
   const lane = state.lane;
   const block = document.getElementById('swimmerBlock');
@@ -114,6 +172,8 @@ socket.on('state', (state) => {
   document.getElementById('totalDistValue').textContent = state.totalDistanceM.toLocaleString('de-DE') + ' m';
   document.getElementById('totalLapsValue').textContent = state.totalLaps.toLocaleString('de-DE') + ' Bahnen';
   renderQueue(state);
+  renderProgress(state);
+  renderLeaderboard(state);
 });
 
 function tickClock() {
@@ -126,6 +186,7 @@ tickClock();
 const celebrationCanvas = document.getElementById('celebrationCanvas');
 const cctx = celebrationCanvas.getContext('2d');
 let celebrating = false;
+let celebrationSpawnInterval = null;
 let confettiParticles = [];
 const CONFETTI_COLORS = ['#FFD84A', '#FF6B4A', '#2EC4C6', '#6BD08A', '#FF8AD4', '#7CA8FF'];
 
@@ -151,6 +212,7 @@ function spawnConfettiBurst() {
 }
 
 function celebrationLoop() {
+  if (!celebrating) return;
   cctx.clearRect(0, 0, celebrationCanvas.width, celebrationCanvas.height);
   confettiParticles.forEach((p) => {
     p.x += p.vx;
@@ -173,8 +235,19 @@ socket.on('celebrate', () => {
   celebrating = true;
   resizeCelebrationCanvas();
   celebrationCanvas.style.display = 'block';
-  setInterval(spawnConfettiBurst, 300);
+  celebrationSpawnInterval = setInterval(spawnConfettiBurst, 300);
   requestAnimationFrame(celebrationLoop);
+});
+
+socket.on('stopCelebration', () => {
+  celebrating = false;
+  if (celebrationSpawnInterval) {
+    clearInterval(celebrationSpawnInterval);
+    celebrationSpawnInterval = null;
+  }
+  confettiParticles = [];
+  cctx.clearRect(0, 0, celebrationCanvas.width, celebrationCanvas.height);
+  celebrationCanvas.style.display = 'none';
 });
 </script>
 </body>
