@@ -192,8 +192,7 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
 
 .empty-hint{ color: var(--slate); font-size: 14px; padding: 8px 0; }
 
-.reset-card{ margin-top: 40px; opacity: 0.85; }
-.reset-card .danger-btn{ background: var(--tint-2); color: var(--bad); width: 100%; }
+.danger-btn{ background: var(--tint-2); color: var(--bad); width: 100%; }
 .reset-feedback{ color: var(--bad); font-size: 13px; margin-top: 8px; min-height: 18px; }
 
 /* ---- Fernseher-Ansicht ---- */
@@ -309,6 +308,61 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
   margin-top: 6px;
 }
 
+.tv-body{
+  display:flex;
+  flex: 1;
+  gap: 48px;
+  align-items: stretch;
+}
+.tv-main{
+  flex: 3;
+  min-width: 0;
+  display:flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.tv-queue-panel{
+  flex: 1;
+  min-width: 0;
+  border-left: 1px solid var(--line);
+  padding-left: 32px;
+  display:flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.tv-queue-title{
+  color: var(--slate);
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 14px;
+}
+.tv-queue-list{
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.tv-queue-list li{
+  font-family:'Bebas Neue', sans-serif;
+  font-size: clamp(20px, 2.4vw, 32px);
+  letter-spacing: 0.02em;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--foam);
+}
+.tv-queue-list li:first-child{ color: var(--lane); }
+.tv-queue-list li:last-child{ border-bottom: none; }
+
+#celebrationCanvas{
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 999;
+  display: none;
+}
+
 /* ---- Zähler-Ansicht (Handy) ---- */
 .counter-page{
   min-height:100vh;
@@ -346,15 +400,24 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
   padding: 8px;
 }
 
-.finish-fallback-btn{
-  width: auto;
-  margin-top: 14px;
-  background: none;
-  color: var(--slate);
-  text-decoration: underline;
-  padding: 6px;
-  font-size: 13px;
-  font-weight: 500;
+.admin-section{
+  width: 100%;
+  max-width: 360px;
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+  opacity: 0.85;
+}
+.admin-section .card{ text-align: left; }
+.btn-row{ display:flex; gap:8px; }
+.btn-row button{ font-size: 13px; padding: 12px 8px; }
+
+.celebrate-btn{
+  width: 100%;
+  margin-top: 20px;
+  background: linear-gradient(135deg, #FFD84A, #FF6B4A);
+  color: #2A1400;
+  font-size: 16px;
 }
 
 .counter-current{
@@ -495,3 +558,75 @@ footer.hint{
   padding: 4px 8px;
   width:auto;
 }
+
+/* ---- Statistik-Seite ---- */
+.progress-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  color: var(--slate);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.progress-current{
+  font-size: 16px;
+  color: var(--lane);
+  text-transform: none;
+  letter-spacing: normal;
+}
+.progress-track{
+  position: relative;
+  height: 16px;
+  background: var(--tint-1);
+  border-radius: 999px;
+  margin: 16px 8px 90px;
+}
+.progress-fill{
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--lane-dim), var(--lane));
+  transition: width 0.6s ease;
+}
+.progress-marker{
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateX(-50%);
+  display:flex;
+  flex-direction: column;
+  align-items: center;
+}
+.progress-marker-line{
+  width: 2px;
+  height: 20px;
+  background: var(--slate);
+  opacity: 0.55;
+}
+.progress-marker-label{
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--slate);
+  text-align: center;
+  white-space: nowrap;
+}
+.progress-marker:nth-child(even) .progress-marker-line{ height: 46px; }
+
+.stats-table{
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+.stats-table th, .stats-table td{
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.stats-table th{
+  color: var(--slate);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+.stats-table tbody tr:first-child td{ color: var(--lane); font-weight: 700; }

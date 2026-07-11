@@ -37,8 +37,6 @@
 
     <div class="cooldown" id="cooldownText"></div>
     <div class="key-hint">Oder beliebige Taste / externen Button drücken</div>
-
-    <button class="secondary finish-fallback-btn" id="finishNoReplacementBtn">Bahn ohne Nachfolger:in beenden</button>
   </div>
 
   <!-- Nächste Person: bestätigen (Start oder Wechsel), überspringen oder manuell wählen -->
@@ -74,6 +72,27 @@
   </div>
 
   <button class="secondary edit-queue-btn" id="openQueueEditorBtn">Warteliste bearbeiten</button>
+
+  <div class="admin-section">
+    <div class="card">
+      <div class="eyebrow" style="margin-bottom:10px;">Sicherung</div>
+      <div class="btn-row">
+        <button class="secondary" id="saveBackupBtn">Sichern</button>
+        <button class="secondary" id="loadBackupBtn">Von Datei laden</button>
+      </div>
+      <input type="file" id="backupFileInput" accept="application/json" hidden>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow" style="margin-bottom:10px;">Gesamt-Reset (nur vor dem Event!)</div>
+      <label for="resetPasswordInput">Passwort</label>
+      <input type="password" id="resetPasswordInput" placeholder="Passwort" maxlength="40">
+      <button class="danger-btn" id="resetAllBtn">Alles zurücksetzen</button>
+      <div class="reset-feedback" id="resetFeedback"></div>
+    </div>
+
+    <button class="celebrate-btn" id="celebrateBtn">🎉 Staffel beenden – Feuerwerk auslösen</button>
+  </div>
 </div>
 
 <!-- Warteliste bearbeiten: Reihenfolge per Drag & Drop, löschen, hinzufügen -->
@@ -141,9 +160,6 @@ function triggerCount() {
 }
 
 countBtn.addEventListener('click', triggerCount);
-document.getElementById('finishNoReplacementBtn').addEventListener('click', () => {
-  socket.emit('finishSwimmer');
-});
 
 // Erlaubt das Zählen per beliebiger Taste – z. B. über einen USB-Arcade-Button
 // oder Presenter-Clicker. Ignoriert Tastendrücke in Formularfeldern/Buttons
@@ -385,6 +401,75 @@ socket.on('state', (state) => {
     dndQueue = state.queue.map((s) => ({ id: s.id, name: s.name }));
     renderDndList();
   }
+});
+
+// ---- Sicherung (Backup speichern / von Datei laden) ----
+
+document.getElementById('saveBackupBtn').addEventListener('click', () => {
+  if (!latestState) return;
+  const backup = {
+    swimmers: latestState.swimmers,
+    queue: latestState.queue.map((s) => s.id),
+    lane: {
+      currentSwimmerId: latestState.lane.currentSwimmerId,
+      laps: latestState.lane.laps,
+      lastCountAt: latestState.lane.lastCountAt,
+      turnStartedAt: latestState.lane.turnStartedAt,
+    },
+    totalLaps: latestState.totalLaps,
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `schwimm-staffel-backup-${stamp}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('loadBackupBtn').addEventListener('click', () => {
+  document.getElementById('backupFileInput').click();
+});
+document.getElementById('backupFileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let parsed;
+    try {
+      parsed = JSON.parse(reader.result);
+    } catch (err) {
+      alert('Datei konnte nicht gelesen werden – ist es eine gültige Sicherungsdatei?');
+      return;
+    }
+    if (!confirm('Den aktuellen Zustand mit dieser Sicherung überschreiben?')) return;
+    socket.emit('loadState', { state: parsed });
+  };
+  reader.readAsText(file);
+});
+
+// ---- Gesamt-Reset ----
+
+document.getElementById('resetAllBtn').addEventListener('click', () => {
+  const password = document.getElementById('resetPasswordInput').value;
+  const feedback = document.getElementById('resetFeedback');
+  feedback.textContent = '';
+  if (!password) { alert('Bitte das Passwort eingeben.'); return; }
+  if (!confirm('Wirklich ALLES zurücksetzen? Schwimmer:innen, Warteliste, Bahn und Gesamtstrecke werden gelöscht. Das kann nicht rückgängig gemacht werden.')) return;
+  socket.emit('resetAll', { password });
+  document.getElementById('resetPasswordInput').value = '';
+});
+socket.on('resetRejected', () => {
+  document.getElementById('resetFeedback').textContent = 'Falsches Passwort.';
+});
+
+// ---- Ende der Staffel: Feuerwerk auf dem Fernseher auslösen ----
+
+document.getElementById('celebrateBtn').addEventListener('click', () => {
+  if (!confirm('Staffel jetzt beenden und Feuerwerk auf dem Fernseher auslösen?')) return;
+  socket.emit('triggerCelebration');
 });
 </script>
 </body>

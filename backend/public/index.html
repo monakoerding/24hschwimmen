@@ -57,16 +57,8 @@
       </div>
     </div>
 
-    <div class="card reset-card">
-      <div class="eyebrow" style="margin-bottom:10px;">Gesamt-Reset (nur vor dem Event!)</div>
-      <label for="resetPasswordInput">Passwort</label>
-      <input type="password" id="resetPasswordInput" placeholder="Passwort" maxlength="40">
-      <button class="danger-btn" id="resetAllBtn">Alles zurücksetzen</button>
-      <div class="reset-feedback" id="resetFeedback"></div>
-    </div>
-
   </div>
-  <footer class="hint">Bahn wird am Zähler-Handy gestartet/gewechselt: /counter.html &nbsp;·&nbsp; Fernseher: /lane.html</footer>
+  <footer class="hint">Bahn wird am Zähler-Handy gestartet/gewechselt: /counter.html &nbsp;·&nbsp; Fernseher: /lane.html &nbsp;·&nbsp; Statistik: /stats.html</footer>
 </div>
 <div class="conn-badge" id="connBadge">verbinde…</div>
 
@@ -93,20 +85,6 @@ document.getElementById('selectExistingBtn').addEventListener('click', () => {
   if (!id) { alert('Bitte einen Namen auswählen.'); return; }
   socket.emit('selectExisting', { swimmerId: id });
   document.getElementById('existingSelect').value = '';
-});
-
-document.getElementById('resetAllBtn').addEventListener('click', () => {
-  const password = document.getElementById('resetPasswordInput').value;
-  const feedback = document.getElementById('resetFeedback');
-  feedback.textContent = '';
-  if (!password) { alert('Bitte das Passwort eingeben.'); return; }
-  if (!confirm('Wirklich ALLES zurücksetzen? Schwimmer:innen, Warteliste, Bahn und Gesamtstrecke werden gelöscht. Das kann nicht rückgängig gemacht werden.')) return;
-  socket.emit('resetAll', { password });
-  document.getElementById('resetPasswordInput').value = '';
-});
-
-socket.on('resetRejected', () => {
-  document.getElementById('resetFeedback').textContent = 'Falsches Passwort.';
 });
 
 function render(state) {

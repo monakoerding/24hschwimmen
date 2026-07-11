@@ -32,10 +32,25 @@ const RESET_PASSWORD = 'frosch';
 
 function defaultState() {
   return {
-    swimmers: [], // { id, name, cry }
+    swimmers: [], // { id, name, cry, totalLaps, totalMs }
     queue: [], // Array von swimmerId, feste Reihenfolge nach Anmeldung
-    lane: { currentSwimmerId: null, laps: 0, lastCountAt: 0 },
+    lane: { currentSwimmerId: null, laps: 0, lastCountAt: 0, turnStartedAt: 0 },
     totalLaps: 0, // zählt über die ganze Staffel, wird nie beim Schwimmerwechsel zurückgesetzt
+  };
+}
+
+// Bringt einen rohen Zustand (aus state.json oder einer hochgeladenen
+// Sicherungsdatei) in die erwartete Form, mit Fallback für das alte
+// Zwei-Bahnen-Format (state.lanes[1]).
+function sanitizeState(raw) {
+  const base = defaultState();
+  if (!raw || typeof raw !== 'object') return base;
+  const oldLane = raw.lane || (raw.lanes && raw.lanes[1]);
+  return {
+    swimmers: Array.isArray(raw.swimmers) ? raw.swimmers : [],
+    queue: Array.isArray(raw.queue) ? raw.queue : [],
+    lane: { ...base.lane, ...oldLane },
+    totalLaps: raw.totalLaps || 0,
   };
 }
 
@@ -43,15 +58,7 @@ function loadState() {
   if (fs.existsSync(DB_FILE)) {
     try {
       const raw = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-      const base = defaultState();
-      // Fallback für altes Zwei-Bahnen-Format (state.lanes[1])
-      const oldLane = raw.lane || (raw.lanes && raw.lanes[1]);
-      return {
-        swimmers: raw.swimmers || [],
-        queue: raw.queue || [],
-        lane: { ...base.lane, ...oldLane },
-        totalLaps: raw.totalLaps || 0,
-      };
+      return sanitizeState(raw);
     } catch (e) {
       console.error('state.json konnte nicht gelesen werden, starte mit leerem Zustand.', e);
     }
@@ -69,6 +76,17 @@ function saveState() {
 
 function getSwimmer(id) {
   return state.swimmers.find((s) => s.id === id) || null;
+}
+
+// Schreibt die Schwimmzeit der aktuell aktiven Person fort, bevor die Bahn
+// neu belegt wird - so bleibt "Minuten im Wasser" über alle Wechsel hinweg
+// korrekt, obwohl lane.laps/lane.turnStartedAt pro Einsatz zurückgesetzt werden.
+function endCurrentTurn(now) {
+  const l = state.lane;
+  if (l.currentSwimmerId && l.turnStartedAt) {
+    const sw = getSwimmer(l.currentSwimmerId);
+    if (sw) sw.totalMs = (sw.totalMs || 0) + (now - l.turnStartedAt);
+  }
 }
 
 // Baut den Zustand auf, so wie ihn die Clients brauchen (mit aufgelösten Namen etc.)
@@ -90,6 +108,8 @@ function publicState() {
       lockoutMs: LOCKOUT_MS,
       // Für die Zähler-Ansicht: wie lange ist die Sperre noch aktiv (serverseitig berechnet)
       lockedUntil: lane.lastCountAt ? lane.lastCountAt + LOCKOUT_MS : 0,
+      lastCountAt: lane.lastCountAt,
+      turnStartedAt: lane.turnStartedAt || 0,
     },
     totalLaps: state.totalLaps,
     totalDistanceM: state.totalLaps * LANE_LENGTH_M,
@@ -110,7 +130,7 @@ io.on('connection', (socket) => {
     const cleanName = (name || '').trim();
     if (!cleanName) return;
     const id = 's_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-    state.swimmers.push({ id, name: cleanName, cry: (cry || '').trim() });
+    state.swimmers.push({ id, name: cleanName, cry: (cry || '').trim(), totalLaps: 0, totalMs: 0 });
     state.queue.push(id);
     broadcast();
   });
@@ -136,10 +156,13 @@ io.on('connection', (socket) => {
   socket.on('assignNext', () => {
     if (state.queue.length === 0) return;
     const l = state.lane;
+    const now = Date.now();
+    endCurrentTurn(now);
     const nextId = state.queue.shift();
     l.currentSwimmerId = nextId;
     l.laps = 0;
     l.lastCountAt = 0;
+    l.turnStartedAt = now;
     broadcast();
   });
 
@@ -164,11 +187,14 @@ io.on('connection', (socket) => {
       const cleanName = (name || '').trim();
       if (!cleanName) return;
       id = 's_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-      state.swimmers.push({ id, name: cleanName, cry: (cry || '').trim() });
+      state.swimmers.push({ id, name: cleanName, cry: (cry || '').trim(), totalLaps: 0, totalMs: 0 });
     }
+    const now = Date.now();
+    endCurrentTurn(now);
     l.currentSwimmerId = id;
     l.laps = 0;
     l.lastCountAt = 0;
+    l.turnStartedAt = now;
     broadcast();
   });
 
@@ -181,15 +207,6 @@ io.on('connection', (socket) => {
     // (keine Einträge verloren gegangen oder dazuerfunden)
     if (cleaned.length !== state.queue.length) return;
     state.queue = cleaned;
-    broadcast();
-  });
-
-  // Aktuellen Schwimmer beenden (Bahn wird wieder frei)
-  socket.on('finishSwimmer', () => {
-    const l = state.lane;
-    l.currentSwimmerId = null;
-    l.laps = 0;
-    l.lastCountAt = 0;
     broadcast();
   });
 
@@ -207,6 +224,8 @@ io.on('connection', (socket) => {
     l.laps += 1;
     l.lastCountAt = now;
     state.totalLaps += 1;
+    const sw = getSwimmer(l.currentSwimmerId);
+    if (sw) sw.totalLaps = (sw.totalLaps || 0) + 1;
     broadcast();
   });
 
@@ -215,7 +234,10 @@ io.on('connection', (socket) => {
     const l = state.lane;
     const before = l.laps;
     l.laps = Math.max(0, l.laps + delta);
-    state.totalLaps = Math.max(0, state.totalLaps + (l.laps - before));
+    const actualDelta = l.laps - before;
+    state.totalLaps = Math.max(0, state.totalLaps + actualDelta);
+    const sw = l.currentSwimmerId ? getSwimmer(l.currentSwimmerId) : null;
+    if (sw) sw.totalLaps = Math.max(0, (sw.totalLaps || 0) + actualDelta);
     broadcast();
   });
 
@@ -228,6 +250,20 @@ io.on('connection', (socket) => {
     }
     state = defaultState();
     broadcast();
+  });
+
+  // Zustand aus einer hochgeladenen Sicherungsdatei wiederherstellen
+  // (z. B. nach einem Redeploy, bei dem state.json verloren ging).
+  socket.on('loadState', ({ state: incoming }) => {
+    state = sanitizeState(incoming);
+    broadcast();
+  });
+
+  // Löst auf allen Geräten (v. a. dem Fernseher) ein Feuerwerk aus - für den
+  // Moment, wenn die Staffel nach 24 Stunden vorbei ist. Kein Teil des
+  // gespeicherten Zustands, nur ein einmaliges Signal an alle Clients.
+  socket.on('triggerCelebration', () => {
+    io.emit('celebrate');
   });
 });
 

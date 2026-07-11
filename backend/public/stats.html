@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Statistik – 24 Stunden Schwimmen 2026</title>
+<script>
+// Design nach Tageszeit: tagsüber hell, nachts dunkel
+(function () {
+  var DAY_START_HOUR = 7;
+  var DAY_END_HOUR = 21;
+  function applyTheme() {
+    var hour = new Date().getHours();
+    var isDay = hour >= DAY_START_HOUR && hour < DAY_END_HOUR;
+    document.documentElement.dataset.theme = isDay ? 'light' : 'dark';
+  }
+  applyTheme();
+  setInterval(applyTheme, 60 * 1000);
+})();
+</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page">
+  <div class="container">
+    <div class="eyebrow">Uhlenköper-Camp · 24 Stunden Schwimmen 2026</div>
+    <h1 class="title">Statistik</h1>
+
+    <div class="card">
+      <div class="progress-header">
+        <span>Gesamtstrecke der Staffel</span>
+        <span class="progress-current mono" id="progressCurrentLabel">0 km</span>
+      </div>
+      <div class="progress-track" id="progressTrack">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow" style="margin-bottom:14px;">Bestenliste</div>
+      <table class="stats-table" id="statsTable">
+        <thead>
+          <tr><th>#</th><th>Name</th><th>Bahnen</th><th>Strecke</th><th>Min. im Wasser</th></tr>
+        </thead>
+        <tbody id="statsTableBody"></tbody>
+      </table>
+      <div class="empty-hint" id="statsEmptyHint">Noch keine Schwimmer:innen.</div>
+    </div>
+
+  </div>
+  <footer class="hint">Anmeldung: /index.html &nbsp;·&nbsp; Zähler: /counter.html &nbsp;·&nbsp; Fernseher: /lane.html</footer>
+</div>
+<div class="conn-badge" id="connBadge">verbinde…</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+const socket = io();
+const connBadge = document.getElementById('connBadge');
+socket.on('connect', () => { connBadge.textContent = 'verbunden'; connBadge.className = 'conn-badge ok'; });
+socket.on('disconnect', () => { connBadge.textContent = 'getrennt'; connBadge.className = 'conn-badge bad'; });
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// Bekannte Strecken als Etappenziele auf dem Weg zur Gesamtstrecke
+const CHECKPOINTS = [
+  { label: 'Einmal nach Uelzen', km: 5 },
+  { label: 'Einmal nach Ebstorf', km: 8 },
+  { label: 'Halbmarathon', km: 21.1 },
+  { label: 'Ärmelkanal (Schwimmstrecke)', km: 34 },
+  { label: 'Marathon', km: 42.2 },
+];
+
+let latestState = null;
+
+function render(state) {
+  latestState = state;
+  renderProgress(state);
+  renderTable(state);
+}
+
+function renderProgress(state) {
+  const km = state.totalDistanceM / 1000;
+  const maxKm = Math.max(CHECKPOINTS[CHECKPOINTS.length - 1].km * 1.15, km * 1.08, 1);
+
+  document.getElementById('progressCurrentLabel').textContent =
+    km.toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' km';
+
+  const fill = document.getElementById('progressFill');
+  fill.style.width = Math.min(100, (km / maxKm) * 100) + '%';
+
+  const track = document.getElementById('progressTrack');
+  track.querySelectorAll('.progress-marker').forEach((el) => el.remove());
+  CHECKPOINTS.forEach((cp) => {
+    const pct = Math.min(100, (cp.km / maxKm) * 100);
+    const marker = document.createElement('div');
+    marker.className = 'progress-marker';
+    marker.style.left = pct + '%';
+    marker.innerHTML = `<span class="progress-marker-line"></span><span class="progress-marker-label">${escapeHtml(cp.label)}<br>${cp.km} km</span>`;
+    track.appendChild(marker);
+  });
+}
+
+function renderTable(state) {
+  const body = document.getElementById('statsTableBody');
+  const emptyHint = document.getElementById('statsEmptyHint');
+  const lane = state.lane;
+  const now = Date.now();
+
+  const rows = state.swimmers.map((s) => {
+    let ms = s.totalMs || 0;
+    if (lane.currentSwimmerId === s.id && lane.turnStartedAt) {
+      ms += now - lane.turnStartedAt;
+    }
+    const laps = s.totalLaps || 0;
+    return {
+      name: s.name,
+      laps,
+      distanceM: laps * state.laneLengthM,
+      minutes: Math.round(ms / 60000),
+    };
+  }).sort((a, b) => b.laps - a.laps);
+
+  body.innerHTML = '';
+  if (rows.length === 0) {
+    emptyHint.style.display = 'block';
+  } else {
+    emptyHint.style.display = 'none';
+    rows.forEach((r, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${i + 1}.</td><td>${escapeHtml(r.name)}</td><td>${r.laps}</td><td>${r.distanceM.toLocaleString('de-DE')} m</td><td>${r.minutes}</td>`;
+      body.appendChild(tr);
+    });
+  }
+}
+
+socket.on('state', render);
+
+// Live-Aktualisierung der Wasserzeit der aktuell schwimmenden Person
+setInterval(() => { if (latestState) renderTable(latestState); }, 5000);
+</script>
+</body>
+</html>

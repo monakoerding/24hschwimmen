@@ -24,37 +24,48 @@
 <div class="tv">
   <div class="tv-header">
     <div>
-      <div class="tv-lane-label">SCHWIMMBAHN</div>
-      <div class="tv-event-label">Uhlenköper-Camp · 24 Stunden Schwimmen 2026</div>
+      <div class="tv-lane-label">24 Stunden Schwimmen 2026</div>
+      <div class="tv-event-label">Von 12 bis 12 Uhr muss immer wer im Wasser schwimmen &ndash; eine große Staffel</div>
     </div>
     <div class="tv-clock mono" id="clock">--:--:--</div>
   </div>
 
-  <div class="tv-total">
-    <div class="tv-total-label">Gesamtstrecke der Staffel</div>
-    <div class="tv-total-value mono" id="totalDistValue">0 m</div>
-    <div class="tv-total-sub" id="totalLapsValue">0 Bahnen</div>
-  </div>
+  <div class="tv-body">
+    <div class="tv-main">
+      <div class="tv-total">
+        <div class="tv-total-label">Gesamtstrecke der Staffel</div>
+        <div class="tv-total-value mono" id="totalDistValue">0 m</div>
+        <div class="tv-total-sub" id="totalLapsValue">0 Bahnen</div>
+      </div>
 
-  <div class="tv-swimmer">
-    <div id="swimmerBlock">
-      <div class="idle">Bahn ist frei</div>
-    </div>
-  </div>
+      <div class="tv-swimmer">
+        <div id="swimmerBlock">
+          <div class="idle">Bahn ist frei</div>
+        </div>
+      </div>
 
-  <div class="tv-stats">
-    <div class="stat-box">
-      <div class="label">Bahnen diese Runde</div>
-      <div class="value" id="lapsValue">0</div>
+      <div class="tv-stats">
+        <div class="stat-box">
+          <div class="label">Bahnen diese Runde</div>
+          <div class="value" id="lapsValue">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="label">Strecke diese Runde</div>
+          <div class="value" id="distValue">0 m</div>
+        </div>
+      </div>
     </div>
-    <div class="stat-box">
-      <div class="label">Strecke diese Runde</div>
-      <div class="value" id="distValue">0 m</div>
+
+    <div class="tv-queue-panel">
+      <div class="tv-queue-title">Als nächstes dran:</div>
+      <ol class="tv-queue-list" id="tvQueueList"></ol>
+      <div class="empty-hint" id="tvQueueEmptyHint">Warteliste ist leer.</div>
     </div>
   </div>
 
   <div class="waterline" style="margin-top:28px;"></div>
 </div>
+<canvas id="celebrationCanvas"></canvas>
 <div class="conn-badge" id="connBadge">verbinde…</div>
 
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
@@ -70,6 +81,22 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+function renderQueue(state) {
+  const list = document.getElementById('tvQueueList');
+  const emptyHint = document.getElementById('tvQueueEmptyHint');
+  list.innerHTML = '';
+  if (state.queue.length === 0) {
+    emptyHint.style.display = 'block';
+  } else {
+    emptyHint.style.display = 'none';
+    state.queue.forEach((s) => {
+      const li = document.createElement('li');
+      li.textContent = s.name;
+      list.appendChild(li);
+    });
+  }
+}
+
 socket.on('state', (state) => {
   const lane = state.lane;
   const block = document.getElementById('swimmerBlock');
@@ -77,7 +104,7 @@ socket.on('state', (state) => {
     block.innerHTML = `
       <div class="status">Es schwimmt:</div>
       <div class="name">${escapeHtml(lane.swimmerName)}</div>
-      ${lane.swimmerCry ? `<div class="cry">${escapeHtml(lane.swimmerName)} – ${escapeHtml(lane.swimmerCry)}</div>` : ''}
+      ${lane.swimmerCry ? `<div class="cry">${escapeHtml(lane.swimmerCry)}</div>` : ''}
     `;
   } else {
     block.innerHTML = `<div class="idle">Bahn ist frei</div>`;
@@ -86,6 +113,7 @@ socket.on('state', (state) => {
   document.getElementById('distValue').textContent = lane.distanceM + ' m';
   document.getElementById('totalDistValue').textContent = state.totalDistanceM.toLocaleString('de-DE') + ' m';
   document.getElementById('totalLapsValue').textContent = state.totalLaps.toLocaleString('de-DE') + ' Bahnen';
+  renderQueue(state);
 });
 
 function tickClock() {
@@ -93,6 +121,61 @@ function tickClock() {
 }
 setInterval(tickClock, 1000);
 tickClock();
+
+// ---- Feier-Feuerwerk am Ende der Staffel ----
+const celebrationCanvas = document.getElementById('celebrationCanvas');
+const cctx = celebrationCanvas.getContext('2d');
+let celebrating = false;
+let confettiParticles = [];
+const CONFETTI_COLORS = ['#FFD84A', '#FF6B4A', '#2EC4C6', '#6BD08A', '#FF8AD4', '#7CA8FF'];
+
+function resizeCelebrationCanvas() {
+  celebrationCanvas.width = window.innerWidth;
+  celebrationCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCelebrationCanvas);
+
+function spawnConfettiBurst() {
+  const x = Math.random() * celebrationCanvas.width;
+  for (let i = 0; i < 18; i++) {
+    confettiParticles.push({
+      x, y: -10,
+      vx: (Math.random() - 0.5) * 3,
+      vy: Math.random() * 2 + 2,
+      size: Math.random() * 8 + 4,
+      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+      rotation: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 0.3,
+    });
+  }
+}
+
+function celebrationLoop() {
+  cctx.clearRect(0, 0, celebrationCanvas.width, celebrationCanvas.height);
+  confettiParticles.forEach((p) => {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.03;
+    p.rotation += p.rotSpeed;
+    cctx.save();
+    cctx.translate(p.x, p.y);
+    cctx.rotate(p.rotation);
+    cctx.fillStyle = p.color;
+    cctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+    cctx.restore();
+  });
+  confettiParticles = confettiParticles.filter((p) => p.y < celebrationCanvas.height + 20);
+  requestAnimationFrame(celebrationLoop);
+}
+
+socket.on('celebrate', () => {
+  if (celebrating) return;
+  celebrating = true;
+  resizeCelebrationCanvas();
+  celebrationCanvas.style.display = 'block';
+  setInterval(spawnConfettiBurst, 300);
+  requestAnimationFrame(celebrationLoop);
+});
 </script>
 </body>
 </html>
