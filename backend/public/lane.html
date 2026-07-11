@@ -71,11 +71,6 @@
     </div>
   </div>
 
-  <div class="tv-leaderboard">
-    <div class="tv-leaderboard-title">Bestenliste</div>
-    <div class="tv-leaderboard-list" id="tvLeaderboardList"></div>
-  </div>
-
   <div class="waterline" style="margin-top:20px;"></div>
 </div>
 <canvas id="celebrationCanvas"></canvas>
@@ -140,21 +135,6 @@ function renderProgress(state) {
   });
 }
 
-function renderLeaderboard(state) {
-  const list = document.getElementById('tvLeaderboardList');
-  const rows = state.swimmers
-    .map((s) => ({ name: s.name, laps: s.totalLaps || 0, distanceM: (s.totalLaps || 0) * state.laneLengthM }))
-    .sort((a, b) => b.laps - a.laps)
-    .slice(0, 5);
-  list.innerHTML = '';
-  rows.forEach((r, i) => {
-    const item = document.createElement('div');
-    item.className = 'tv-leaderboard-item' + (i === 0 ? ' first' : '');
-    item.innerHTML = `<div class="rank">${i + 1}.</div><div class="name">${escapeHtml(r.name)}</div><div class="sub">${r.distanceM.toLocaleString('de-DE')} m</div>`;
-    list.appendChild(item);
-  });
-}
-
 socket.on('state', (state) => {
   const lane = state.lane;
   const block = document.getElementById('swimmerBlock');
@@ -173,7 +153,6 @@ socket.on('state', (state) => {
   document.getElementById('totalLapsValue').textContent = state.totalLaps.toLocaleString('de-DE') + ' Bahnen';
   renderQueue(state);
   renderProgress(state);
-  renderLeaderboard(state);
 });
 
 function tickClock() {

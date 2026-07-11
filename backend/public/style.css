@@ -330,6 +330,8 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
   list-style: none;
   margin: 0;
   padding: 0;
+  max-height: 38vh;
+  overflow-y: auto;
 }
 .tv-queue-list li{
   font-family:'Bebas Neue', sans-serif;
@@ -397,47 +399,6 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
   font-size: 16px;
   color: var(--lane);
   text-align: center;
-}
-
-.tv-leaderboard{
-  margin-top: 14px;
-}
-.tv-leaderboard-title{
-  color: var(--slate);
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-bottom: 8px;
-  text-align: center;
-}
-.tv-leaderboard-list{
-  display:flex;
-  gap: 12px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-.tv-leaderboard-item{
-  background: linear-gradient(180deg, var(--panel), var(--ink));
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 7px 16px;
-  text-align: center;
-  min-width: 130px;
-}
-.tv-leaderboard-item.first{ border-color: var(--lane); }
-.tv-leaderboard-item .rank{
-  font-family:'Bebas Neue', sans-serif;
-  font-size: 19px;
-  color: var(--lane);
-}
-.tv-leaderboard-item .name{
-  font-weight: 700;
-  font-size: 14px;
-  margin: 1px 0;
-}
-.tv-leaderboard-item .sub{
-  color: var(--slate);
-  font-size: 11px;
 }
 
 #celebrationCanvas{
