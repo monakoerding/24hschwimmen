@@ -401,6 +401,30 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
   text-align: center;
 }
 
+/* ---- Fernseher-Ansicht auf schmalen Bildschirmen (Handy/Tablet hochkant) ----
+   Die quere Fernseher-Ansicht bleibt für breite Bildschirme unverändert;
+   hier wird nur umgestapelt und verkleinert. */
+@media (max-width: 760px){
+  .tv{ padding: 24px 18px; }
+  .tv-header{ flex-wrap: wrap; gap: 10px; }
+  .tv-lane-label{ font-size: 20px; }
+  .tv-event-label{ font-size: 12px; }
+  .tv-clock{ font-size: 15px; }
+
+  .tv-body{ flex-direction: column; gap: 28px; }
+  .tv-main{ flex: none; }
+  .tv-queue-panel{
+    flex: none;
+    border-left: none;
+    border-top: 1px solid var(--line);
+    padding-left: 0;
+    padding-top: 24px;
+  }
+  .tv-stats{ flex-wrap: wrap; }
+  .stat-box{ max-width: none; min-width: 140px; }
+  .tv-progress{ min-height: 140px; }
+}
+
 #celebrationCanvas{
   position: fixed;
   inset: 0;

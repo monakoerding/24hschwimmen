@@ -290,9 +290,16 @@ document.getElementById('editAddNewBtn').addEventListener('click', () => {
   const name = document.getElementById('editNameInput').value.trim();
   const cry = document.getElementById('editCryInput').value.trim();
   if (!name) { alert('Bitte einen Namen eintragen.'); return; }
+  if (latestState && latestState.swimmers.some((s) => s.name.toLowerCase() === name.toLowerCase())) {
+    alert('Den Namen gibt es schon.');
+    return;
+  }
   socket.emit('register', { name, cry });
   document.getElementById('editNameInput').value = '';
   document.getElementById('editCryInput').value = '';
+});
+socket.on('registerRejected', () => {
+  alert('Den Namen gibt es schon.');
 });
 document.getElementById('editAddExistingBtn').addEventListener('click', () => {
   const id = document.getElementById('editExistingSelect').value;

@@ -32,7 +32,7 @@
       <select id="existingSelect">
         <option value="">– Namen auswählen –</option>
       </select>
-      <button class="secondary" id="selectExistingBtn">Wieder zur Warteliste anmelden</button>
+      <button class="primary" id="selectExistingBtn">Wieder zur Warteliste anmelden</button>
     </div>
 
     <div class="card">
@@ -56,13 +56,23 @@ const connBadge = document.getElementById('connBadge');
 socket.on('connect', () => { connBadge.textContent = 'verbunden'; connBadge.className = 'conn-badge ok'; });
 socket.on('disconnect', () => { connBadge.textContent = 'getrennt'; connBadge.className = 'conn-badge bad'; });
 
+let latestState = null;
+
 document.getElementById('registerBtn').addEventListener('click', () => {
   const name = document.getElementById('nameInput').value.trim();
   const cry = document.getElementById('cryInput').value.trim();
   if (!name) { alert('Bitte einen Namen eintragen.'); return; }
+  if (latestState && latestState.swimmers.some((s) => s.name.toLowerCase() === name.toLowerCase())) {
+    alert('Den Namen gibt es schon.');
+    return;
+  }
   socket.emit('register', { name, cry });
   document.getElementById('nameInput').value = '';
   document.getElementById('cryInput').value = '';
+});
+
+socket.on('registerRejected', () => {
+  alert('Den Namen gibt es schon.');
 });
 
 document.getElementById('selectExistingBtn').addEventListener('click', () => {
@@ -73,6 +83,8 @@ document.getElementById('selectExistingBtn').addEventListener('click', () => {
 });
 
 function render(state) {
+  latestState = state;
+
   // Bestehende Schwimmer-Auswahl
   const select = document.getElementById('existingSelect');
   const currentSelection = select.value;

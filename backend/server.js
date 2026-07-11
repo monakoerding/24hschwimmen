@@ -129,6 +129,11 @@ io.on('connection', (socket) => {
   socket.on('register', ({ name, cry }) => {
     const cleanName = (name || '').trim();
     if (!cleanName) return;
+    const alreadyExists = state.swimmers.some((s) => s.name.toLowerCase() === cleanName.toLowerCase());
+    if (alreadyExists) {
+      socket.emit('registerRejected', { reason: 'duplicateName' });
+      return;
+    }
     const id = 's_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
     state.swimmers.push({ id, name: cleanName, cry: (cry || '').trim(), totalLaps: 0, totalMs: 0 });
     state.queue.push(id);
@@ -186,6 +191,11 @@ io.on('connection', (socket) => {
     } else {
       const cleanName = (name || '').trim();
       if (!cleanName) return;
+      const alreadyExists = state.swimmers.some((s) => s.name.toLowerCase() === cleanName.toLowerCase());
+      if (alreadyExists) {
+        socket.emit('registerRejected', { reason: 'duplicateName' });
+        return;
+      }
       id = 's_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
       state.swimmers.push({ id, name: cleanName, cry: (cry || '').trim(), totalLaps: 0, totalMs: 0 });
     }
