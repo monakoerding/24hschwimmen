@@ -21,7 +21,7 @@
 <link rel="stylesheet" href="style.css">
 <script src="colors.js"></script>
 </head>
-<body>
+<body class="counter-body">
 <div class="counter-wrap">
   <div class="counter-header">
     <div>
@@ -220,6 +220,25 @@ document.addEventListener('keydown', (e) => {
 
 // ---- Farbe belegen / wechseln / freigeben ----
 
+// Leert das "Neu anmelden"-Formular - sonst würde beim nächsten Öffnen
+// (gleiche oder andere Farbe) noch der zuletzt eingetippte Name dastehen.
+function clearAssignNewForm() {
+  document.getElementById('assignFirstNameInput').value = '';
+  document.getElementById('assignLastNameInput').value = '';
+  document.getElementById('assignClubInput').value = '';
+  document.getElementById('assignBirthDateInput').value = '';
+  document.getElementById('assignTeamNameInput').value = '';
+  document.getElementById('assignTeamClubInput').value = '';
+}
+
+function closeAssignOverlay() {
+  document.getElementById('assignOverlay').hidden = true;
+  document.getElementById('assignNewForm').hidden = true;
+  assignNewOpen = false;
+  clearAssignNewForm();
+  assignColor = null;
+}
+
 function openAssignPanel(color, mode) {
   assignColor = color;
   assignNewOpen = false;
@@ -228,15 +247,13 @@ function openAssignPanel(color, mode) {
   document.getElementById('assignTitle').textContent = 'Farbe ' + (info ? info.name : color) + (mode === 'switch' ? ' wechseln' : ' belegen');
   document.getElementById('assignSearchInput').value = '';
   document.getElementById('assignNewForm').hidden = true;
+  clearAssignNewForm();
   setAssignType('individual');
   renderAssignSearch();
   document.getElementById('assignOverlay').hidden = false;
   document.getElementById('assignSearchInput').focus();
 }
-document.getElementById('assignCloseBtn').addEventListener('click', () => {
-  document.getElementById('assignOverlay').hidden = true;
-  assignColor = null;
-});
+document.getElementById('assignCloseBtn').addEventListener('click', closeAssignOverlay);
 
 document.getElementById('assignSearchInput').addEventListener('input', renderAssignSearch);
 
@@ -267,8 +284,7 @@ function renderAssignSearch() {
     btn.textContent = participantDisplayName(p) + (p.club ? ' · ' + p.club : '') + (p.type === 'team' ? ' (Team)' : '');
     btn.addEventListener('click', () => {
       socket.emit('assignSlot', { color: assignColor, participantId: p.id });
-      document.getElementById('assignOverlay').hidden = true;
-      assignColor = null;
+      closeAssignOverlay();
     });
     list.appendChild(btn);
   });
@@ -312,8 +328,7 @@ document.getElementById('assignNewSubmitBtn').addEventListener('click', () => {
     if (!payload.firstName || !payload.lastName) { alert('Bitte Vor- und Nachnamen eintragen.'); return; }
   }
   socket.emit('assignSlotNew', payload);
-  document.getElementById('assignOverlay').hidden = true;
-  assignColor = null;
+  closeAssignOverlay();
 });
 
 socket.on('registerRejected', ({ reason }) => {
@@ -328,8 +343,7 @@ socket.on('registerRejected', ({ reason }) => {
         payload = { color: assignColor, type: 'individual', firstName: document.getElementById('assignFirstNameInput').value.trim(), lastName: document.getElementById('assignLastNameInput').value.trim(), club: document.getElementById('assignClubInput').value.trim(), birthDate: document.getElementById('assignBirthDateInput').value, confirmDuplicate: true };
       }
       socket.emit('assignSlotNew', payload);
-      document.getElementById('assignOverlay').hidden = true;
-      assignColor = null;
+      closeAssignOverlay();
     }
     return;
   }
