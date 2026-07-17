@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Admin – 24 Stunden Schwimmen 2026</title>
+<script>
+// Design nach Tageszeit: tagsüber hell, nachts dunkel
+(function () {
+  var DAY_START_HOUR = 7;
+  var DAY_END_HOUR = 21;
+  function applyTheme() {
+    var hour = new Date().getHours();
+    var isDay = hour >= DAY_START_HOUR && hour < DAY_END_HOUR;
+    document.documentElement.dataset.theme = isDay ? 'light' : 'dark';
+  }
+  applyTheme();
+  setInterval(applyTheme, 60 * 1000);
+})();
+</script>
+<link rel="stylesheet" href="style.css">
+<script src="colors.js"></script>
+</head>
+<body>
+<div class="page">
+  <div class="container">
+    <div class="eyebrow">Eberswalder Schwimmverein e. V. · 24 Stunden Schwimmen 2026</div>
+    <h1 class="title">Admin</h1>
+
+    <div class="card" id="loginCard">
+      <div class="eyebrow" style="margin-bottom:10px;">Anmeldung</div>
+      <label for="adminPasswordInput">Passwort</label>
+      <input type="password" id="adminPasswordInput" placeholder="Passwort" maxlength="40">
+      <button class="primary" id="adminLoginBtn">Anmelden</button>
+      <div class="reset-feedback" id="loginFeedback"></div>
+    </div>
+
+    <div id="adminContent" hidden>
+
+      <div class="card">
+        <div class="eyebrow" style="margin-bottom:10px;">Teilnehmer-Register</div>
+        <div class="admin-list" id="participantList"></div>
+        <div class="empty-hint" id="participantEmptyHint">Noch niemand angemeldet.</div>
+      </div>
+
+      <div class="card">
+        <div class="eyebrow" style="margin-bottom:10px;">Verlauf (abgeschlossene Einsätze)</div>
+        <div class="admin-list" id="historyList"></div>
+        <div class="empty-hint" id="historyEmptyHint">Noch keine abgeschlossenen Einsätze.</div>
+      </div>
+
+      <div class="card">
+        <div class="eyebrow" style="margin-bottom:10px;">Sicherung</div>
+        <div class="btn-row">
+          <button class="secondary" id="saveBackupBtn">Sichern</button>
+          <button class="secondary" id="loadBackupBtn">Von Datei laden</button>
+          <button class="secondary" id="exportCsvBtn">CSV-Export</button>
+        </div>
+        <input type="file" id="backupFileInput" accept="application/json" hidden>
+      </div>
+
+      <div class="card">
+        <div class="eyebrow" style="margin-bottom:10px;">Gesamt-Reset (nur vor dem Event!)</div>
+        <label for="resetPasswordInput">Passwort</label>
+        <input type="password" id="resetPasswordInput" placeholder="Passwort" maxlength="40">
+        <button class="danger-btn" id="resetAllBtn">Alles zurücksetzen</button>
+        <div class="reset-feedback" id="resetFeedback"></div>
+      </div>
+
+      <button class="celebrate-btn" id="celebrateBtn">🎉 Event beenden – Feuerwerk auslösen</button>
+    </div>
+
+  </div>
+  <footer class="hint">Anmeldung: /index.html &nbsp;·&nbsp; Zähler: /counter.html &nbsp;·&nbsp; Fernseher: /lane.html &nbsp;·&nbsp; Statistik: /stats.html</footer>
+</div>
+<div class="conn-badge" id="connBadge">verbinde…</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+const connBadge = document.getElementById('connBadge');
+socket.on('connect', () => {
+  connBadge.textContent = 'verbunden';
+  connBadge.className = 'conn-badge ok';
+  // Admin-Status ist pro Socket-Verbindung - nach jedem (Re-)Connect erneut
+  // anmelden, falls schon in dieser Sitzung eingeloggt.
+  const savedPw = sessionStorage.getItem('adminPw');
+  if (savedPw) socket.emit('adminLogin', { password: savedPw });
+});
+socket.on('disconnect', () => { connBadge.textContent = 'getrennt'; connBadge.className = 'conn-badge bad'; });
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+function participantDisplayName(p) {
+  return p.type === 'team' ? p.teamName : ((p.firstName || '') + ' ' + (p.lastName || '')).trim();
+}
+function fmtDateTime(ts) {
+  return new Date(ts).toLocaleString('de-DE');
+}
+function fmtDuration(ms) {
+  const min = Math.round(ms / 60000);
+  return min + ' Min.';
+}
+
+let latestState = null;
+let isAdmin = false;
+
+document.getElementById('adminLoginBtn').addEventListener('click', () => {
+  const password = document.getElementById('adminPasswordInput').value;
+  sessionStorage.setItem('adminPw', password);
+  socket.emit('adminLogin', { password });
+});
+
+socket.on('adminLoginResult', ({ ok }) => {
+  isAdmin = ok;
+  document.getElementById('loginCard').hidden = ok;
+  document.getElementById('adminContent').hidden = !ok;
+  document.getElementById('loginFeedback').textContent = ok ? '' : 'Falsches Passwort.';
+  if (!ok) sessionStorage.removeItem('adminPw');
+  if (ok && latestState) render(latestState);
+});
+
+// ---- Teilnehmer-Register ----
+
+function render(state) {
+  latestState = state;
+  if (!isAdmin) return;
+  renderParticipants(state);
+  renderHistory(state);
+}
+
+function renderParticipants(state) {
+  const occupied = new Set(state.lane.slots.filter((s) => s.occupantId).map((s) => s.occupantId));
+  const list = document.getElementById('participantList');
+  const empty = document.getElementById('participantEmptyHint');
+  list.innerHTML = '';
+  empty.style.display = state.participants.length === 0 ? 'block' : 'none';
+  state.participants.forEach((p) => {
+    const row = document.createElement('div');
+    row.className = 'admin-list-row';
+    const busy = occupied.has(p.id);
+    row.innerHTML = `
+      <span class="admin-list-name">${escapeHtml(participantDisplayName(p))}${p.type === 'team' ? ' <span class="admin-list-tag">Team</span>' : ''}</span>
+      <span class="admin-list-sub">${escapeHtml(p.club || '')} · ${p.totalLaps || 0} Bahnen</span>
+      <button type="button" class="admin-list-remove" ${busy ? 'disabled title="Belegt gerade eine Farbe - erst freigeben"' : ''}>Entfernen</button>
+    `;
+    row.querySelector('.admin-list-remove').addEventListener('click', () => {
+      if (busy) return;
+      if (!confirm('„' + participantDisplayName(p) + '" wirklich aus dem Register entfernen?')) return;
+      socket.emit('removeParticipant', { participantId: p.id });
+    });
+    list.appendChild(row);
+  });
+}
+
+function renderHistory(state) {
+  const colorsById = SWIM_COLORS.reduce((m, c) => (m[c.id] = c, m), {});
+  const list = document.getElementById('historyList');
+  const empty = document.getElementById('historyEmptyHint');
+  list.innerHTML = '';
+  empty.style.display = state.recentHistory.length === 0 ? 'block' : 'none';
+  state.recentHistory.forEach((h) => {
+    const c = colorsById[h.color];
+    const row = document.createElement('div');
+    row.className = 'admin-list-row';
+    row.innerHTML = `
+      <span class="admin-list-name"><span class="color-swatch small" style="background:${c ? c.hex : '#999'}"></span> ${escapeHtml(h.participantName || '–')}</span>
+      <span class="admin-list-sub">${fmtDateTime(h.startTs)} – ${fmtDateTime(h.endTs)} · ${h.laps} Bahnen · ${fmtDuration(h.durationMs)}</span>
+    `;
+    list.appendChild(row);
+  });
+}
+
+socket.on('state', render);
+
+// ---- Sicherung ----
+
+document.getElementById('saveBackupBtn').addEventListener('click', () => {
+  if (!latestState) return;
+  const blob = new Blob([JSON.stringify(latestState, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `24h-schwimmen-backup-${stamp}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('loadBackupBtn').addEventListener('click', () => {
+  document.getElementById('backupFileInput').click();
+});
+document.getElementById('backupFileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let parsed;
+    try {
+      parsed = JSON.parse(reader.result);
+    } catch (err) {
+      alert('Datei konnte nicht gelesen werden – ist es eine gültige Sicherungsdatei?');
+      return;
+    }
+    if (!confirm('Den aktuellen Zustand mit dieser Sicherung überschreiben?')) return;
+    socket.emit('loadState', { state: parsed });
+  };
+  reader.readAsText(file);
+});
+
+document.getElementById('exportCsvBtn').addEventListener('click', () => {
+  if (!latestState) return;
+  const rows = [['Name', 'Typ', 'Verein', 'Bahnen', 'Strecke (m)', 'Minuten im Wasser']];
+  latestState.participants.forEach((p) => {
+    rows.push([
+      participantDisplayName(p),
+      p.type === 'team' ? 'Team' : 'Einzelperson',
+      p.club || '',
+      p.totalLaps || 0,
+      (p.totalLaps || 0) * latestState.laneLengthM,
+      Math.round((p.totalMs || 0) / 60000),
+    ]);
+  });
+  const csv = rows.map((r) => r.map((v) => '"' + String(v).replace(/"/g, '""') + '"').join(';')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `24h-schwimmen-ergebnisse-${stamp}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ---- Gesamt-Reset ----
+
+document.getElementById('resetAllBtn').addEventListener('click', () => {
+  const password = document.getElementById('resetPasswordInput').value;
+  const feedback = document.getElementById('resetFeedback');
+  feedback.textContent = '';
+  if (!password) { alert('Bitte das Passwort eingeben.'); return; }
+  if (!confirm('Wirklich ALLES zurücksetzen? Teilnehmer-Register, alle Farben und die Gesamtstrecke werden gelöscht. Das kann nicht rückgängig gemacht werden.')) return;
+  socket.emit('resetAll', { password });
+  document.getElementById('resetPasswordInput').value = '';
+});
+socket.on('resetRejected', () => {
+  document.getElementById('resetFeedback').textContent = 'Falsches Passwort.';
+});
+
+// ---- Ende des Events: Feuerwerk auf dem Fernseher auslösen ----
+
+document.getElementById('celebrateBtn').addEventListener('click', () => {
+  if (!confirm('Event jetzt beenden und Feuerwerk auf dem Fernseher auslösen?')) return;
+  socket.emit('triggerCelebration');
+});
+
+socket.on('actionRejected', ({ event, reason }) => {
+  if (reason === 'notAdmin') {
+    document.getElementById('loginFeedback').textContent = 'Bitte zuerst anmelden.';
+  } else if (event === 'removeParticipant' && reason === 'stillAssigned') {
+    alert('Diese Person/dieses Team belegt gerade eine Farbe - bitte erst am Zähler-Gerät freigeben.');
+  }
+});
+</script>
+</body>
+</html>

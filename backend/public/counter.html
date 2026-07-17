@@ -19,116 +19,72 @@
 })();
 </script>
 <link rel="stylesheet" href="style.css">
+<script src="colors.js"></script>
 </head>
 <body>
-<div class="counter-page">
-  <div class="eyebrow" style="margin-bottom:6px;">Uhlenköper-Camp · 24 Stunden Schwimmen 2026</div>
-  <div class="lane-tag" style="margin-bottom:18px;"><span class="dot"></span>Zähler</div>
-
-  <!-- Es schwimmt gerade jemand: Zähl-Button -->
-  <div id="swimmingView" hidden>
-    <div class="counter-current">Es schwimmt:</div>
-    <div class="counter-name" id="currentName">–</div>
-
-    <button class="count-btn" id="countBtn">
-      <span class="big-num" id="lapsNum">0</span>
-      BAHN GEZÄHLT
-    </button>
-
-    <div class="cooldown" id="cooldownText"></div>
-    <div class="key-hint">Oder beliebige Taste / externen Button drücken</div>
+<div class="counter-wrap">
+  <div class="counter-header">
+    <div>
+      <div class="eyebrow">Eberswalder Schwimmverein e. V. · 24 Stunden Schwimmen 2026</div>
+      <div class="lane-tag" style="margin-top:6px;"><span class="dot"></span>Zähler</div>
+    </div>
+    <a class="admin-link" href="/admin.html">Admin →</a>
   </div>
 
-  <!-- Nächste Person: bestätigen (Start oder Wechsel), überspringen oder manuell wählen -->
-  <div id="nextUpView">
-    <div class="empty-hint" id="startEmptyHint">Warteliste ist leer.</div>
+  <div class="color-grid" id="colorGrid"></div>
 
-    <div class="start-confirm" id="startConfirm" hidden>
-      <div class="counter-current" id="nextUpLabel">Bahn ist frei</div>
-      <div class="counter-name" id="candidateName">–</div>
-      <div class="start-question" id="startQuestion">startet?</div>
-      <div class="btn-stack">
-        <button class="primary" id="confirmYesBtn">Ja</button>
-        <button class="secondary" id="confirmSkipBtn">Nein, überspringen, nächste:r</button>
-        <button class="secondary" id="confirmOtherBtn">Nein, anderen Namen eingeben</button>
-      </div>
-    </div>
-
-    <div class="start-manual" id="startManual" hidden>
-      <div class="eyebrow" style="margin-bottom:10px;">Andere Person starten</div>
-      <label for="manualNameInput">Name</label>
-      <input type="text" id="manualNameInput" placeholder="z. B. Mona" maxlength="40">
-      <label for="manualCryInput">Kampfschrei (optional)</label>
-      <input type="text" id="manualCryInput" placeholder="optional" maxlength="80">
-      <div class="empty-hint" style="padding-top:0;">oder schon registrierte Person wählen:</div>
-      <select id="manualExistingSelect">
-        <option value="">– Namen auswählen –</option>
-      </select>
-      <div class="btn-stack">
-        <button class="primary" id="manualStartBtn">Starten</button>
-        <button class="secondary" id="manualCancelBtn">Zurück</button>
-      </div>
-    </div>
-  </div>
-
-  <button class="secondary edit-queue-btn" id="openQueueEditorBtn">Warteliste bearbeiten</button>
-
-  <div class="admin-section">
-    <div class="card">
-      <div class="eyebrow" style="margin-bottom:10px;">Sicherung</div>
-      <div class="btn-row">
-        <button class="secondary" id="saveBackupBtn">Sichern</button>
-        <button class="secondary" id="loadBackupBtn">Von Datei laden</button>
-      </div>
-      <input type="file" id="backupFileInput" accept="application/json" hidden>
-    </div>
-
-    <div class="card">
-      <div class="eyebrow" style="margin-bottom:10px;">Gesamt-Reset (nur vor dem Event!)</div>
-      <label for="resetPasswordInput">Passwort</label>
-      <input type="password" id="resetPasswordInput" placeholder="Passwort" maxlength="40">
-      <button class="danger-btn" id="resetAllBtn">Alles zurücksetzen</button>
-      <div class="reset-feedback" id="resetFeedback"></div>
-    </div>
-
-    <button class="celebrate-btn" id="celebrateBtn">🎉 Staffel beenden – Feuerwerk auslösen</button>
-  </div>
+  <div class="sync-indicator" id="syncIndicator" hidden></div>
+  <div class="key-hint">Zifferntasten 1–9/0 zählen die jeweilige Farbe. Andere Taste = zuletzt angetippte Farbe erneut zählen (für externen Clicker).</div>
 </div>
 
-<!-- Warteliste bearbeiten: Reihenfolge per Drag & Drop, löschen, hinzufügen -->
-<div class="queue-editor-overlay" id="queueEditor" hidden>
-  <div class="queue-editor-panel">
-    <div class="queue-editor-header">
-      <span class="eyebrow">Warteliste bearbeiten</span>
-      <button class="secondary" id="closeQueueEditorBtn">Fertig</button>
+<!-- Farbe belegen / wechseln -->
+<div class="overlay" id="assignOverlay" hidden>
+  <div class="overlay-panel card">
+    <div class="overlay-header">
+      <span class="eyebrow" id="assignTitle">Farbe belegen</span>
+      <button class="secondary" id="assignCloseBtn">Abbrechen</button>
     </div>
 
-    <ul class="dnd-list" id="dndQueueList"></ul>
-    <div class="empty-hint" id="dndEmptyHint">Warteliste ist leer.</div>
+    <label for="assignSearchInput">Registrierte Person/Team suchen</label>
+    <input type="text" id="assignSearchInput" placeholder="Name oder Teamname tippen …">
+    <div class="assign-search-list" id="assignSearchList"></div>
+    <div class="empty-hint" id="assignSearchEmpty">Keine passende Person/kein Team gefunden.</div>
 
-    <div class="queue-editor-add">
-      <label for="editNameInput">Neuer Name</label>
-      <input type="text" id="editNameInput" placeholder="z. B. Mona" maxlength="40">
-      <label for="editCryInput">Kampfschrei (optional)</label>
-      <input type="text" id="editCryInput" placeholder="optional" maxlength="80">
-      <button class="primary" id="editAddNewBtn">Zur Warteliste hinzufügen</button>
+    <button class="secondary" id="assignNewToggleBtn" style="margin-top:12px;">+ Neu anmelden</button>
 
-      <label for="editExistingSelect" style="margin-top:14px;">Schon registrierte Person hinzufügen</label>
-      <select id="editExistingSelect">
-        <option value="">– Namen auswählen –</option>
-      </select>
-      <button class="secondary" id="editAddExistingBtn">Zur Warteliste hinzufügen</button>
+    <div id="assignNewForm" hidden style="margin-top:14px;">
+      <div class="type-toggle" id="assignTypeToggle">
+        <button type="button" class="type-toggle-btn active" id="assignTypeIndividualBtn">Einzelperson</button>
+        <button type="button" class="type-toggle-btn" id="assignTypeTeamBtn">Team</button>
+      </div>
+      <div id="assignIndividualFields">
+        <label for="assignFirstNameInput">Vorname</label>
+        <input type="text" id="assignFirstNameInput" maxlength="40">
+        <label for="assignLastNameInput">Nachname</label>
+        <input type="text" id="assignLastNameInput" maxlength="40">
+        <label for="assignClubInput">Verein</label>
+        <input type="text" id="assignClubInput" maxlength="60">
+        <label for="assignBirthDateInput">Geburtsdatum (optional)</label>
+        <input type="date" id="assignBirthDateInput">
+      </div>
+      <div id="assignTeamFields" hidden>
+        <label for="assignTeamNameInput">Teamname</label>
+        <input type="text" id="assignTeamNameInput" maxlength="60">
+        <label for="assignTeamClubInput">Verein (optional)</label>
+        <input type="text" id="assignTeamClubInput" maxlength="60">
+      </div>
+      <button class="primary" id="assignNewSubmitBtn">Anmelden &amp; Farbe belegen</button>
     </div>
   </div>
 </div>
 
 <div class="conn-badge" id="connBadge">verbinde…</div>
 
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
 <script>
 const socket = io();
 const connBadge = document.getElementById('connBadge');
-socket.on('connect', () => { connBadge.textContent = 'verbunden'; connBadge.className = 'conn-badge ok'; });
+socket.on('connect', () => { connBadge.textContent = 'verbunden'; connBadge.className = 'conn-badge ok'; flushPending(); });
 socket.on('disconnect', () => { connBadge.textContent = 'getrennt'; connBadge.className = 'conn-badge bad'; });
 
 function escapeHtml(str) {
@@ -137,347 +93,331 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-const countBtn = document.getElementById('countBtn');
-const cooldownText = document.getElementById('cooldownText');
-let lockedUntil = 0;
-let cooldownTimer = null;
+let latestState = null;
+let armedColor = null;
+let assignColor = null; // Farbe, für die gerade das Belegen-Panel offen ist
+let assignNewOpen = false;
+let assignType = 'individual';
 
-function updateCooldownUI() {
-  const remaining = lockedUntil - Date.now();
-  if (remaining > 0) {
-    countBtn.disabled = true;
-    cooldownText.textContent = 'Gesperrt: noch ' + (remaining / 1000).toFixed(1) + ' s';
+const LOCKOUT_MS = 10000; // Fallback, wird von der ersten state-Meldung überschrieben
+
+// ---- Offline-Pufferung: Zählungen gehen bei Verbindungsverlust nicht
+// verloren, sondern werden lokal gesammelt und beim Wiederverbinden als
+// ein einziger Nachtrag pro Farbe gesendet (siehe adjustLaps im Backend). ----
+
+const PENDING_KEY = 'swimCounterPending';
+
+function loadPending() {
+  try {
+    return JSON.parse(localStorage.getItem(PENDING_KEY)) || {};
+  } catch (e) {
+    return {};
+  }
+}
+function savePending(pending) {
+  localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+}
+function genActionId() {
+  return 'a_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+}
+
+function flushPending() {
+  if (!socket.connected) return;
+  const pending = loadPending();
+  Object.keys(pending).forEach((color) => {
+    const entry = pending[color];
+    if (entry && entry.pendingDelta > 0) {
+      socket.emit('adjustLaps', { color, delta: entry.pendingDelta, clientActionId: entry.clientActionId, clientTs: entry.lastTs });
+    }
+  });
+  renderSyncIndicator();
+}
+setInterval(flushPending, 5000);
+
+socket.on('actionAck', ({ clientActionId, color, deduped }) => {
+  const pending = loadPending();
+  if (pending[color] && pending[color].clientActionId === clientActionId) {
+    delete pending[color];
+    savePending(pending);
+    renderSyncIndicator();
+  }
+});
+
+function renderSyncIndicator() {
+  const pending = loadPending();
+  const colors = Object.keys(pending).filter((c) => pending[c] && pending[c].pendingDelta > 0);
+  const el = document.getElementById('syncIndicator');
+  if (colors.length === 0) {
+    el.hidden = true;
+    return;
+  }
+  el.hidden = false;
+  const info = SWIM_COLORS.reduce((m, c) => (m[c.id] = c, m), {});
+  el.textContent = '🔄 wird synchronisiert: ' + colors.map((c) => (info[c] ? info[c].name : c) + ' (' + pending[c].pendingDelta + ')').join(', ');
+}
+
+function localLap(colorId) { return SWIM_COLORS.find((c) => c.id === colorId); }
+
+function serverLapsFor(color) {
+  if (!latestState) return 0;
+  const slot = latestState.lane.slots.find((s) => s.color === color);
+  return slot ? slot.laps : 0;
+}
+function pendingDeltaFor(color) {
+  const pending = loadPending();
+  return pending[color] ? pending[color].pendingDelta : 0;
+}
+function displayedLapsFor(color) {
+  return serverLapsFor(color) + pendingDeltaFor(color);
+}
+function lockedUntilFor(color) {
+  const pending = loadPending();
+  const localUntil = pending[color] ? pending[color].lockedUntil || 0 : 0;
+  const slot = latestState ? latestState.lane.slots.find((s) => s.color === color) : null;
+  const serverUntil = slot ? slot.lockedUntil : 0;
+  return Math.max(localUntil, serverUntil);
+}
+
+// ---- Zählen ----
+
+function triggerCount(color) {
+  const slot = latestState && latestState.lane.slots.find((s) => s.color === color);
+  if (!slot || !slot.occupantId) return; // Farbe nicht belegt - nichts zu zählen
+  if (Date.now() < lockedUntilFor(color)) return; // gesperrt (online oder lokal)
+
+  armedColor = color;
+
+  if (socket.connected) {
+    socket.emit('countLap', { color, clientActionId: genActionId() });
   } else {
-    countBtn.disabled = false;
-    cooldownText.textContent = '';
-    if (cooldownTimer) { clearInterval(cooldownTimer); cooldownTimer = null; }
+    const pending = loadPending();
+    const entry = pending[color] || { pendingDelta: 0, clientActionId: genActionId(), lastTs: 0 };
+    entry.pendingDelta += 1;
+    entry.lastTs = Date.now();
+    entry.lockedUntil = Date.now() + LOCKOUT_MS;
+    pending[color] = entry;
+    savePending(pending);
+    renderGrid();
+    renderSyncIndicator();
   }
 }
 
-function triggerCount() {
-  if (countBtn.disabled) return;
-  socket.emit('countLap');
-}
-
-countBtn.addEventListener('click', triggerCount);
-
-// Erlaubt das Zählen per beliebiger Taste – z. B. über einen USB-Arcade-Button
-// oder Presenter-Clicker. Ignoriert Tastendrücke in Formularfeldern/Buttons
-// und wenn gerade niemand schwimmt oder die Warteliste bearbeitet wird.
+// Zifferntasten 1-9/0 zählen direkt die passende Farbe (für 10 einzelne
+// USB-Taster). Jede andere Taste zählt die zuletzt angetippte Farbe erneut
+// (Fallback für einen einzelnen generischen Clicker).
 document.addEventListener('keydown', (e) => {
   const tag = (e.target && e.target.tagName) || '';
   if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(tag)) return;
-  if (queueEditorOpen) return;
-  if (!latestState || !latestState.lane.swimmerName) return;
-  triggerCount();
+  if (!document.getElementById('assignOverlay').hidden) return;
+
+  const byKey = SWIM_COLORS.find((c) => String(c.index) === e.key);
+  if (byKey) {
+    triggerCount(byKey.id);
+    return;
+  }
+  if (armedColor) triggerCount(armedColor);
 });
 
-socket.on('countRejected', ({ remainingMs }) => {
-  lockedUntil = Date.now() + remainingMs;
-  if (!cooldownTimer) cooldownTimer = setInterval(updateCooldownUI, 100);
-  updateCooldownUI();
+// ---- Farbe belegen / wechseln / freigeben ----
+
+function openAssignPanel(color, mode) {
+  assignColor = color;
+  assignNewOpen = false;
+  assignType = 'individual';
+  const info = SWIM_COLORS.find((c) => c.id === color);
+  document.getElementById('assignTitle').textContent = 'Farbe ' + (info ? info.name : color) + (mode === 'switch' ? ' wechseln' : ' belegen');
+  document.getElementById('assignSearchInput').value = '';
+  document.getElementById('assignNewForm').hidden = true;
+  setAssignType('individual');
+  renderAssignSearch();
+  document.getElementById('assignOverlay').hidden = false;
+  document.getElementById('assignSearchInput').focus();
+}
+document.getElementById('assignCloseBtn').addEventListener('click', () => {
+  document.getElementById('assignOverlay').hidden = true;
+  assignColor = null;
 });
 
-// ---- Nächste Person starten oder wechseln (funktioniert egal ob die Bahn
-// gerade frei ist oder noch jemand schwimmt - so kann man die/den Nächste:n
-// schon bestätigen, bevor die aktuelle Person fertig ist, und die Bahn
-// steht nie leer) ----
+document.getElementById('assignSearchInput').addEventListener('input', renderAssignSearch);
 
-let latestState = null;
-let manualFormOpen = false;
+function occupiedParticipantIds(state) {
+  return new Set(state.lane.slots.filter((s) => s.occupantId).map((s) => s.occupantId));
+}
+function participantDisplayName(p) {
+  return p.type === 'team' ? p.teamName : ((p.firstName || '') + ' ' + (p.lastName || '')).trim();
+}
 
-function populateExistingSelect(select, state, excludeQueued) {
-  if (!select) return;
-  const current = select.value;
-  const queuedIds = new Set(state.queue.map((s) => s.id));
-  select.innerHTML = '<option value="">– Namen auswählen –</option>';
-  state.swimmers.forEach((s) => {
-    if (excludeQueued && queuedIds.has(s.id)) return;
-    const opt = document.createElement('option');
-    opt.value = s.id;
-    opt.textContent = s.name;
-    select.appendChild(opt);
+function renderAssignSearch() {
+  if (!latestState) return;
+  const q = document.getElementById('assignSearchInput').value.trim().toLowerCase();
+  const occupied = occupiedParticipantIds(latestState);
+  const matches = latestState.participants.filter((p) => {
+    if (occupied.has(p.id)) return false;
+    if (!q) return true;
+    return participantDisplayName(p).toLowerCase().includes(q);
   });
-  select.value = current;
-}
-
-function renderNextUp(state) {
-  const lane = state.lane;
-  const emptyHint = document.getElementById('startEmptyHint');
-  const confirm = document.getElementById('startConfirm');
-  const manual = document.getElementById('startManual');
-  const label = document.getElementById('nextUpLabel');
-  const question = document.getElementById('startQuestion');
-
-  if (manualFormOpen) {
-    emptyHint.hidden = true;
-    confirm.hidden = true;
-    manual.hidden = false;
-    return;
-  }
-  manual.hidden = true;
-
-  if (state.queue.length === 0) {
-    confirm.hidden = true;
-    emptyHint.hidden = false;
-    emptyHint.textContent = lane.swimmerName
-      ? 'Niemand in der Warteliste – bitte am Tablet jemanden anmelden, damit die Bahn nicht leer wird.'
-      : 'Warteliste ist leer.';
-  } else {
-    emptyHint.hidden = true;
-    confirm.hidden = false;
-    document.getElementById('candidateName').textContent = state.queue[0].name;
-    if (lane.swimmerName) {
-      label.textContent = 'Als Nächste:r bereit:';
-      question.textContent = 'jetzt wechseln?';
-    } else {
-      label.textContent = 'Bahn ist frei';
-      question.textContent = 'startet?';
-    }
-  }
-}
-
-document.getElementById('confirmYesBtn').addEventListener('click', () => {
-  socket.emit('assignNext');
-});
-document.getElementById('confirmSkipBtn').addEventListener('click', () => {
-  socket.emit('skipQueueFront');
-});
-document.getElementById('confirmOtherBtn').addEventListener('click', () => {
-  manualFormOpen = true;
-  if (latestState) renderNextUp(latestState);
-});
-document.getElementById('manualCancelBtn').addEventListener('click', () => {
-  manualFormOpen = false;
-  if (latestState) renderNextUp(latestState);
-});
-document.getElementById('manualStartBtn').addEventListener('click', () => {
-  const existingId = document.getElementById('manualExistingSelect').value;
-  const name = document.getElementById('manualNameInput').value.trim();
-  const cry = document.getElementById('manualCryInput').value.trim();
-  if (existingId) {
-    socket.emit('startDirect', { swimmerId: existingId });
-  } else {
-    if (!name) { alert('Bitte einen Namen eintragen oder eine Person auswählen.'); return; }
-    socket.emit('startDirect', { name, cry });
-  }
-  document.getElementById('manualNameInput').value = '';
-  document.getElementById('manualCryInput').value = '';
-  document.getElementById('manualExistingSelect').value = '';
-  manualFormOpen = false;
-});
-
-// ---- Warteliste bearbeiten (Drag & Drop, löschen, hinzufügen) ----
-
-let queueEditorOpen = false;
-let dndQueue = [];
-let dragging = null;
-
-document.getElementById('openQueueEditorBtn').addEventListener('click', () => {
-  queueEditorOpen = true;
-  document.getElementById('queueEditor').hidden = false;
-  if (latestState) {
-    dndQueue = latestState.queue.map((s) => ({ id: s.id, name: s.name }));
-    renderDndList();
-  }
-});
-document.getElementById('closeQueueEditorBtn').addEventListener('click', () => {
-  queueEditorOpen = false;
-  document.getElementById('queueEditor').hidden = true;
-});
-
-document.getElementById('editAddNewBtn').addEventListener('click', () => {
-  const name = document.getElementById('editNameInput').value.trim();
-  const cry = document.getElementById('editCryInput').value.trim();
-  if (!name) { alert('Bitte einen Namen eintragen.'); return; }
-  if (latestState && latestState.swimmers.some((s) => s.name.toLowerCase() === name.toLowerCase())) {
-    alert('Den Namen gibt es schon.');
-    return;
-  }
-  socket.emit('register', { name, cry });
-  document.getElementById('editNameInput').value = '';
-  document.getElementById('editCryInput').value = '';
-});
-socket.on('registerRejected', () => {
-  alert('Den Namen gibt es schon.');
-});
-document.getElementById('editAddExistingBtn').addEventListener('click', () => {
-  const id = document.getElementById('editExistingSelect').value;
-  if (!id) { alert('Bitte eine Person auswählen.'); return; }
-  socket.emit('selectExisting', { swimmerId: id });
-  document.getElementById('editExistingSelect').value = '';
-});
-
-function renderDndList() {
-  const ul = document.getElementById('dndQueueList');
-  ul.innerHTML = '';
-  dndQueue.forEach((item, i) => {
-    const li = document.createElement('li');
-    li.className = 'dnd-item';
-    li.dataset.id = item.id;
-    li.innerHTML = `
-      <span class="dnd-handle" aria-label="Ziehen zum Sortieren">☰</span>
-      <span class="dnd-pos">${i + 1}.</span>
-      <span class="dnd-name">${escapeHtml(item.name)}</span>
-      <button class="dnd-remove" aria-label="Entfernen">✕</button>
-    `;
-    li.querySelector('.dnd-remove').addEventListener('click', () => {
-      socket.emit('removeFromQueue', { swimmerId: item.id });
+  const list = document.getElementById('assignSearchList');
+  const empty = document.getElementById('assignSearchEmpty');
+  list.innerHTML = '';
+  empty.style.display = matches.length === 0 ? 'block' : 'none';
+  matches.slice(0, 30).forEach((p) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'assign-search-item';
+    btn.textContent = participantDisplayName(p) + (p.club ? ' · ' + p.club : '') + (p.type === 'team' ? ' (Team)' : '');
+    btn.addEventListener('click', () => {
+      socket.emit('assignSlot', { color: assignColor, participantId: p.id });
+      document.getElementById('assignOverlay').hidden = true;
+      assignColor = null;
     });
-    li.querySelector('.dnd-handle').addEventListener('pointerdown', (e) => startDrag(e, item.id));
-    ul.appendChild(li);
+    list.appendChild(btn);
   });
-  if (dragging) {
-    const li = ul.querySelector(`li[data-id="${CSS.escape(dragging.id)}"]`);
-    if (li) li.classList.add('dragging');
+}
+
+document.getElementById('assignNewToggleBtn').addEventListener('click', () => {
+  assignNewOpen = !assignNewOpen;
+  document.getElementById('assignNewForm').hidden = !assignNewOpen;
+});
+
+function setAssignType(t) {
+  assignType = t;
+  document.getElementById('assignTypeIndividualBtn').classList.toggle('active', t === 'individual');
+  document.getElementById('assignTypeTeamBtn').classList.toggle('active', t === 'team');
+  document.getElementById('assignIndividualFields').hidden = t !== 'individual';
+  document.getElementById('assignTeamFields').hidden = t !== 'team';
+}
+document.getElementById('assignTypeIndividualBtn').addEventListener('click', () => setAssignType('individual'));
+document.getElementById('assignTypeTeamBtn').addEventListener('click', () => setAssignType('team'));
+
+document.getElementById('assignNewSubmitBtn').addEventListener('click', () => {
+  if (!assignColor) return;
+  let payload;
+  if (assignType === 'team') {
+    payload = {
+      color: assignColor,
+      type: 'team',
+      teamName: document.getElementById('assignTeamNameInput').value.trim(),
+      club: document.getElementById('assignTeamClubInput').value.trim(),
+    };
+    if (!payload.teamName) { alert('Bitte einen Teamnamen eintragen.'); return; }
+  } else {
+    payload = {
+      color: assignColor,
+      type: 'individual',
+      firstName: document.getElementById('assignFirstNameInput').value.trim(),
+      lastName: document.getElementById('assignLastNameInput').value.trim(),
+      club: document.getElementById('assignClubInput').value.trim(),
+      birthDate: document.getElementById('assignBirthDateInput').value,
+    };
+    if (!payload.firstName || !payload.lastName) { alert('Bitte Vor- und Nachnamen eintragen.'); return; }
   }
-}
+  socket.emit('assignSlotNew', payload);
+  document.getElementById('assignOverlay').hidden = true;
+  assignColor = null;
+});
 
-function moveItem(from, to) {
-  const [item] = dndQueue.splice(from, 1);
-  dndQueue.splice(to, 0, item);
-  renderDndList();
-}
-
-function startDrag(e, id) {
-  e.preventDefault();
-  dragging = { id, pointerId: e.pointerId };
-  renderDndList();
-
-  function onMove(ev) {
-    if (!dragging || ev.pointerId !== dragging.pointerId) return;
-    const ul = document.getElementById('dndQueueList');
-    const items = Array.from(ul.querySelectorAll('.dnd-item'));
-    const currentIndex = dndQueue.findIndex((q) => q.id === dragging.id);
-    for (const other of items) {
-      if (other.dataset.id === dragging.id) continue;
-      const rect = other.getBoundingClientRect();
-      const midY = rect.top + rect.height / 2;
-      const otherIndex = dndQueue.findIndex((q) => q.id === other.dataset.id);
-      if (ev.clientY < midY && otherIndex < currentIndex) {
-        moveItem(currentIndex, otherIndex);
-        break;
-      } else if (ev.clientY > midY && otherIndex > currentIndex) {
-        moveItem(currentIndex, otherIndex);
-        break;
+socket.on('registerRejected', ({ reason }) => {
+  if (reason === 'duplicateParticipant') {
+    if (confirm('Es gibt schon jemanden mit diesem Namen/Teamnamen — trotzdem anlegen und Farbe belegen?')) {
+      // Erneut senden, diesmal mit confirmDuplicate
+      const t = assignType;
+      let payload;
+      if (t === 'team') {
+        payload = { color: assignColor, type: 'team', teamName: document.getElementById('assignTeamNameInput').value.trim(), club: document.getElementById('assignTeamClubInput').value.trim(), confirmDuplicate: true };
+      } else {
+        payload = { color: assignColor, type: 'individual', firstName: document.getElementById('assignFirstNameInput').value.trim(), lastName: document.getElementById('assignLastNameInput').value.trim(), club: document.getElementById('assignClubInput').value.trim(), birthDate: document.getElementById('assignBirthDateInput').value, confirmDuplicate: true };
       }
+      socket.emit('assignSlotNew', payload);
+      document.getElementById('assignOverlay').hidden = true;
+      assignColor = null;
     }
+    return;
   }
-  function onUp(ev) {
-    if (!dragging || ev.pointerId !== dragging.pointerId) return;
-    document.removeEventListener('pointermove', onMove);
-    document.removeEventListener('pointerup', onUp);
-    document.removeEventListener('pointercancel', onUp);
-    socket.emit('reorderQueue', { order: dndQueue.map((q) => q.id) });
-    dragging = null;
-    renderDndList();
-  }
-  document.addEventListener('pointermove', onMove);
-  document.addEventListener('pointerup', onUp);
-  document.addEventListener('pointercancel', onUp);
+  alert('Bitte alle Pflichtfelder ausfüllen.');
+});
+
+function freeSlotWithConfirm(color, name) {
+  if (!confirm((name || 'Diese Farbe') + ' freigeben? Der Einsatz wird beendet.')) return;
+  socket.emit('freeSlot', { color });
 }
 
-// ---- State-Updates ----
+// ---- Rendering des Farb-Grids ----
+
+const cooldownTimers = {};
+
+function renderGrid() {
+  if (!latestState) return;
+  const grid = document.getElementById('colorGrid');
+  const slotsByColor = {};
+  latestState.lane.slots.forEach((s) => { slotsByColor[s.color] = s; });
+
+  grid.innerHTML = '';
+  SWIM_COLORS.forEach((c) => {
+    const slot = slotsByColor[c.id];
+    const occupied = !!(slot && slot.occupantId);
+    const laps = displayedLapsFor(c.id);
+    const lockedUntil = lockedUntilFor(c.id);
+    const remaining = lockedUntil - Date.now();
+
+    const card = document.createElement('div');
+    card.className = 'color-card ' + (occupied ? 'occupied' : 'free') + (remaining > 0 ? ' locked' : '') + (armedColor === c.id ? ' armed' : '');
+    card.style.setProperty('--card-color', c.hex);
+    card.style.setProperty('--card-text', c.text);
+
+    if (occupied) {
+      card.innerHTML = `
+        <div class="color-card-top">
+          <span class="color-swatch" style="background:${c.hex};border:${c.id === 'white' ? '1px solid var(--line)' : 'none'}"></span>
+          <span class="color-badge">${c.index}</span>
+          <span class="color-name">${c.name}</span>
+        </div>
+        <div class="color-card-occupant">${escapeHtml(slot.occupantName || '')}</div>
+        <div class="color-card-laps mono">${laps}</div>
+        <div class="color-card-cooldown">${remaining > 0 ? 'gesperrt ' + Math.ceil(remaining / 1000) + ' s' : 'antippen zum Zählen'}</div>
+        <div class="color-card-actions">
+          <button type="button" class="card-action-btn free-btn">Freigeben</button>
+          <button type="button" class="card-action-btn switch-btn">Wechseln</button>
+        </div>
+      `;
+      card.querySelector('.color-card-top').addEventListener('click', () => triggerCount(c.id));
+      card.querySelector('.color-card-occupant').addEventListener('click', () => triggerCount(c.id));
+      card.querySelector('.color-card-laps').addEventListener('click', () => triggerCount(c.id));
+      card.querySelector('.free-btn').addEventListener('click', (e) => { e.stopPropagation(); freeSlotWithConfirm(c.id, slot.occupantName); });
+      card.querySelector('.switch-btn').addEventListener('click', (e) => { e.stopPropagation(); openAssignPanel(c.id, 'switch'); });
+    } else {
+      card.innerHTML = `
+        <div class="color-card-top">
+          <span class="color-swatch" style="background:${c.hex};border:${c.id === 'white' ? '1px solid var(--line)' : 'none'}"></span>
+          <span class="color-badge">${c.index}</span>
+          <span class="color-name">${c.name}</span>
+        </div>
+        <div class="color-card-empty">– frei –</div>
+        <button type="button" class="card-action-btn primary-action">Farbe belegen</button>
+      `;
+      card.querySelector('.primary-action').addEventListener('click', () => openAssignPanel(c.id, 'assign'));
+    }
+
+    grid.appendChild(card);
+  });
+}
+
+socket.on('countRejected', ({ color, remainingMs }) => {
+  const pending = loadPending();
+  pending[color] = pending[color] || { pendingDelta: 0, clientActionId: genActionId(), lastTs: 0 };
+  pending[color].lockedUntil = Date.now() + remainingMs;
+  savePending(pending);
+  renderGrid();
+});
 
 socket.on('state', (state) => {
   latestState = state;
-  const lane = state.lane;
-
-  document.getElementById('lapsNum').textContent = lane.laps;
-  document.getElementById('swimmingView').hidden = !lane.swimmerName;
-  if (lane.swimmerName) {
-    document.getElementById('currentName').textContent = lane.swimmerName;
-  }
-
-  renderNextUp(state);
-
-  if (lane.lockedUntil && lane.lockedUntil > Date.now()) {
-    lockedUntil = lane.lockedUntil;
-    if (!cooldownTimer) cooldownTimer = setInterval(updateCooldownUI, 100);
-    updateCooldownUI();
-  } else {
-    lockedUntil = 0;
-    updateCooldownUI();
-  }
-
-  populateExistingSelect(document.getElementById('manualExistingSelect'), state, false);
-  populateExistingSelect(document.getElementById('editExistingSelect'), state, true);
-
-  document.getElementById('dndEmptyHint').style.display = state.queue.length === 0 ? 'block' : 'none';
-  if (queueEditorOpen && !dragging) {
-    dndQueue = state.queue.map((s) => ({ id: s.id, name: s.name }));
-    renderDndList();
-  }
+  renderGrid();
+  renderSyncIndicator();
 });
 
-// ---- Sicherung (Backup speichern / von Datei laden) ----
-
-document.getElementById('saveBackupBtn').addEventListener('click', () => {
-  if (!latestState) return;
-  const backup = {
-    swimmers: latestState.swimmers,
-    queue: latestState.queue.map((s) => s.id),
-    lane: {
-      currentSwimmerId: latestState.lane.currentSwimmerId,
-      laps: latestState.lane.laps,
-      lastCountAt: latestState.lane.lastCountAt,
-      turnStartedAt: latestState.lane.turnStartedAt,
-    },
-    totalLaps: latestState.totalLaps,
-  };
-  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `schwimm-staffel-backup-${stamp}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-});
-
-document.getElementById('loadBackupBtn').addEventListener('click', () => {
-  document.getElementById('backupFileInput').click();
-});
-document.getElementById('backupFileInput').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  e.target.value = '';
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    let parsed;
-    try {
-      parsed = JSON.parse(reader.result);
-    } catch (err) {
-      alert('Datei konnte nicht gelesen werden – ist es eine gültige Sicherungsdatei?');
-      return;
-    }
-    if (!confirm('Den aktuellen Zustand mit dieser Sicherung überschreiben?')) return;
-    socket.emit('loadState', { state: parsed });
-  };
-  reader.readAsText(file);
-});
-
-// ---- Gesamt-Reset ----
-
-document.getElementById('resetAllBtn').addEventListener('click', () => {
-  const password = document.getElementById('resetPasswordInput').value;
-  const feedback = document.getElementById('resetFeedback');
-  feedback.textContent = '';
-  if (!password) { alert('Bitte das Passwort eingeben.'); return; }
-  if (!confirm('Wirklich ALLES zurücksetzen? Schwimmer:innen, Warteliste, Bahn und Gesamtstrecke werden gelöscht. Das kann nicht rückgängig gemacht werden.')) return;
-  socket.emit('resetAll', { password });
-  document.getElementById('resetPasswordInput').value = '';
-});
-socket.on('resetRejected', () => {
-  document.getElementById('resetFeedback').textContent = 'Falsches Passwort.';
-});
-
-// ---- Ende der Staffel: Feuerwerk auf dem Fernseher auslösen ----
-
-document.getElementById('celebrateBtn').addEventListener('click', () => {
-  if (!confirm('Staffel jetzt beenden und Feuerwerk auf dem Fernseher auslösen?')) return;
-  socket.emit('triggerCelebration');
-});
+// Tickt die Sperrzeit-Anzeige jede Sekunde herunter, ohne auf ein neues
+// state-Ereignis zu warten.
+setInterval(() => { if (latestState) renderGrid(); }, 1000);
 </script>
 </body>
 </html>

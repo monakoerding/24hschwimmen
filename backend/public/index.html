@@ -19,37 +19,51 @@
 })();
 </script>
 <link rel="stylesheet" href="style.css">
+<script src="colors.js"></script>
 </head>
 <body>
 <div class="page">
   <div class="container signup-page">
-    <div class="eyebrow">Uhlenköper-Camp · 24 Stunden Schwimmen 2026</div>
+    <div class="eyebrow">Eberswalder Schwimmverein e. V. · 24 Stunden Schwimmen 2026</div>
     <h1 class="title">Anmeldung</h1>
+    <p class="empty-hint" style="margin:-10px 0 20px;">
+      Hier meldest du dich bzw. dein Team einmalig an. Wann und wie oft ihr schwimmt,
+      wird direkt am Beckenrand am Zähler-Gerät festgelegt.
+    </p>
 
     <div class="card">
-      <div class="eyebrow" style="margin-bottom:10px;">Schon mal geschwommen?</div>
-      <label for="existingSelect">Aus der Liste wählen</label>
-      <select id="existingSelect">
-        <option value="">– Namen auswählen –</option>
-      </select>
-      <button class="primary" id="selectExistingBtn">Wieder zur Warteliste anmelden</button>
-    </div>
+      <div class="type-toggle" id="typeToggle">
+        <button type="button" class="type-toggle-btn active" id="typeIndividualBtn">Einzelperson</button>
+        <button type="button" class="type-toggle-btn" id="typeTeamBtn">Team</button>
+      </div>
 
-    <div class="card">
-      <div class="eyebrow" style="margin-bottom:10px;">Neu hier?</div>
-      <label for="nameInput">Dein Name</label>
-      <input type="text" id="nameInput" placeholder="z. B. Mona" maxlength="40">
-      <label for="cryInput">Kampfschrei (optional)</label>
-      <input type="text" id="cryInput" placeholder="z. B. Schneller als jeder Aal im Ozean" maxlength="80">
-      <button class="primary" id="registerBtn">Zur Warteliste anmelden</button>
+      <div id="individualFields">
+        <label for="firstNameInput">Vorname</label>
+        <input type="text" id="firstNameInput" placeholder="z. B. Mona" maxlength="40">
+        <label for="lastNameInput">Nachname</label>
+        <input type="text" id="lastNameInput" placeholder="z. B. Koerding" maxlength="40">
+        <label for="clubInput">Verein</label>
+        <input type="text" id="clubInput" placeholder="z. B. Eberswalder SV" maxlength="60">
+        <label for="birthDateInput">Geburtsdatum (optional)</label>
+        <input type="date" id="birthDateInput">
+      </div>
+
+      <div id="teamFields" hidden>
+        <label for="teamNameInput">Teamname</label>
+        <input type="text" id="teamNameInput" placeholder="z. B. Wasserfrösche" maxlength="60">
+        <label for="teamClubInput">Verein (optional)</label>
+        <input type="text" id="teamClubInput" placeholder="z. B. Eberswalder SV" maxlength="60">
+      </div>
+
+      <button class="primary" id="registerBtn">Anmelden</button>
     </div>
 
   </div>
-  <footer class="hint">Bahn wird am Zähler-Handy gestartet/gewechselt: /counter.html &nbsp;·&nbsp; Fernseher: /lane.html &nbsp;·&nbsp; Statistik: /stats.html</footer>
+  <footer class="hint">Zähler-Gerät (Farbe belegen/zählen): /counter.html &nbsp;·&nbsp; Fernseher: /lane.html &nbsp;·&nbsp; Statistik: /stats.html &nbsp;·&nbsp; Admin: /admin.html</footer>
 </div>
 <div class="conn-badge" id="connBadge">verbinde…</div>
 
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
 <script>
 const socket = io();
 const connBadge = document.getElementById('connBadge');
@@ -57,48 +71,76 @@ socket.on('connect', () => { connBadge.textContent = 'verbunden'; connBadge.clas
 socket.on('disconnect', () => { connBadge.textContent = 'getrennt'; connBadge.className = 'conn-badge bad'; });
 
 let latestState = null;
+let type = 'individual';
 
-document.getElementById('registerBtn').addEventListener('click', () => {
-  const name = document.getElementById('nameInput').value.trim();
-  const cry = document.getElementById('cryInput').value.trim();
-  if (!name) { alert('Bitte einen Namen eintragen.'); return; }
-  if (latestState && latestState.swimmers.some((s) => s.name.toLowerCase() === name.toLowerCase())) {
-    alert('Den Namen gibt es schon.');
-    return;
+function setType(next) {
+  type = next;
+  document.getElementById('typeIndividualBtn').classList.toggle('active', type === 'individual');
+  document.getElementById('typeTeamBtn').classList.toggle('active', type === 'team');
+  document.getElementById('individualFields').hidden = type !== 'individual';
+  document.getElementById('teamFields').hidden = type !== 'team';
+}
+document.getElementById('typeIndividualBtn').addEventListener('click', () => setType('individual'));
+document.getElementById('typeTeamBtn').addEventListener('click', () => setType('team'));
+
+function collectPayload() {
+  if (type === 'team') {
+    return {
+      type: 'team',
+      teamName: document.getElementById('teamNameInput').value.trim(),
+      club: document.getElementById('teamClubInput').value.trim(),
+    };
   }
-  socket.emit('register', { name, cry });
-  document.getElementById('nameInput').value = '';
-  document.getElementById('cryInput').value = '';
-});
-
-socket.on('registerRejected', () => {
-  alert('Den Namen gibt es schon.');
-});
-
-document.getElementById('selectExistingBtn').addEventListener('click', () => {
-  const id = document.getElementById('existingSelect').value;
-  if (!id) { alert('Bitte einen Namen auswählen.'); return; }
-  socket.emit('selectExisting', { swimmerId: id });
-  document.getElementById('existingSelect').value = '';
-});
-
-function render(state) {
-  latestState = state;
-
-  // Bestehende Schwimmer-Auswahl
-  const select = document.getElementById('existingSelect');
-  const currentSelection = select.value;
-  select.innerHTML = '<option value="">– Namen auswählen –</option>';
-  state.swimmers.forEach((s) => {
-    const opt = document.createElement('option');
-    opt.value = s.id;
-    opt.textContent = s.name;
-    select.appendChild(opt);
-  });
-  select.value = currentSelection;
+  return {
+    type: 'individual',
+    firstName: document.getElementById('firstNameInput').value.trim(),
+    lastName: document.getElementById('lastNameInput').value.trim(),
+    club: document.getElementById('clubInput').value.trim(),
+    birthDate: document.getElementById('birthDateInput').value,
+  };
 }
 
-socket.on('state', render);
+function clearForm() {
+  document.getElementById('firstNameInput').value = '';
+  document.getElementById('lastNameInput').value = '';
+  document.getElementById('clubInput').value = '';
+  document.getElementById('birthDateInput').value = '';
+  document.getElementById('teamNameInput').value = '';
+  document.getElementById('teamClubInput').value = '';
+}
+
+function submitRegistration(confirmDuplicate) {
+  const payload = collectPayload();
+  if (payload.type === 'team' && !payload.teamName) {
+    alert('Bitte einen Teamnamen eintragen.');
+    return;
+  }
+  if (payload.type === 'individual' && (!payload.firstName || !payload.lastName)) {
+    alert('Bitte Vor- und Nachnamen eintragen.');
+    return;
+  }
+  if (confirmDuplicate) payload.confirmDuplicate = true;
+  socket.emit('register', payload);
+  clearForm();
+}
+
+document.getElementById('registerBtn').addEventListener('click', () => submitRegistration(false));
+
+socket.on('registerRejected', ({ reason }) => {
+  if (reason === 'duplicateParticipant') {
+    const label = type === 'team' ? 'diesen Teamnamen' : 'diesen Namen';
+    if (confirm('Es gibt schon jemanden mit ' + label + ' — trotzdem anlegen?')) {
+      submitRegistration(true);
+      return;
+    }
+    return;
+  }
+  alert('Bitte alle Pflichtfelder ausfüllen.');
+});
+
+socket.on('state', (state) => {
+  latestState = state;
+});
 </script>
 </body>
 </html>

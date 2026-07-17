@@ -19,21 +19,35 @@
 })();
 </script>
 <link rel="stylesheet" href="style.css">
+<script src="colors.js"></script>
 </head>
 <body>
 <div class="page">
   <div class="container">
-    <div class="eyebrow">Uhlenköper-Camp · 24 Stunden Schwimmen 2026</div>
+    <div class="eyebrow">Eberswalder Schwimmverein e. V. · 24 Stunden Schwimmen 2026</div>
     <h1 class="title">Statistik</h1>
 
     <div class="card">
       <div class="progress-header">
-        <span>Gesamtstrecke der Staffel</span>
+        <span>Gesamtstrecke auf dieser Bahn</span>
         <span class="progress-current mono" id="progressCurrentLabel">0 km</span>
       </div>
       <div class="progress-track" id="progressTrack">
         <div class="progress-fill" id="progressFill"></div>
       </div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow" style="margin-bottom:10px;">Dich oder dein Team finden</div>
+      <input type="text" id="searchInput" placeholder="Name oder Teamname eingeben …">
+    </div>
+
+    <div class="card" id="yourResultCard" hidden>
+      <div class="eyebrow" style="margin-bottom:10px;">Deine Ergebnisse</div>
+      <div class="your-result-stats" id="yourResultStats"></div>
+      <div class="eyebrow" style="margin:16px 0 8px;">Einsätze</div>
+      <div class="admin-list" id="yourResultHistory"></div>
+      <div class="empty-hint" id="yourResultHistoryEmpty">Noch keine abgeschlossenen Einsätze.</div>
     </div>
 
     <div class="card">
@@ -44,7 +58,7 @@
         </thead>
         <tbody id="statsTableBody"></tbody>
       </table>
-      <div class="empty-hint" id="statsEmptyHint">Noch keine Schwimmer:innen.</div>
+      <div class="empty-hint" id="statsEmptyHint">Noch niemand angemeldet.</div>
     </div>
 
   </div>
@@ -52,7 +66,7 @@
 </div>
 <div class="conn-badge" id="connBadge">verbinde…</div>
 
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
 <script>
 const socket = io();
 const connBadge = document.getElementById('connBadge');
@@ -64,15 +78,24 @@ function escapeHtml(str) {
   div.textContent = str;
   return div.innerHTML;
 }
+function participantDisplayName(p) {
+  return p.type === 'team' ? p.teamName : ((p.firstName || '') + ' ' + (p.lastName || '')).trim();
+}
+function reversedName(p) {
+  return p.type === 'team' ? p.teamName : ((p.lastName || '') + ' ' + (p.firstName || '')).trim();
+}
+function fmtDateTime(ts) {
+  return new Date(ts).toLocaleString('de-DE');
+}
 
-// Bekannte Strecken als Etappenziele auf dem Weg zur Gesamtstrecke
+// Generische Distanz-Meilensteine (bewusst ohne Ortsbezug für den ersten
+// Entwurf, siehe Planung).
 const CHECKPOINTS = [
-  { label: 'Einmal nach Uelzen', km: 5 },
-  { label: 'Kanutour', km: 14 },
+  { label: '10 km', km: 10 },
   { label: 'Halbmarathon', km: 21.1 },
-  { label: 'Ärmelkanal (Schwimmstrecke)', km: 34 },
+  { label: '30 km', km: 30 },
   { label: 'Marathon', km: 42.2 },
-  { label: 'Letztes Jahr', km: 45.15 },
+  { label: '50 km', km: 50 },
 ];
 
 let latestState = null;
@@ -81,6 +104,7 @@ function render(state) {
   latestState = state;
   renderProgress(state);
   renderTable(state);
+  renderYourResult(state);
 }
 
 function renderProgress(state) {
@@ -105,43 +129,106 @@ function renderProgress(state) {
   });
 }
 
-function renderTable(state) {
-  const body = document.getElementById('statsTableBody');
-  const emptyHint = document.getElementById('statsEmptyHint');
+// Baut die vollständige, korrekt gerankte Liste. Wird von der Tabelle UND
+// der Suche genutzt, damit die Rang-Nummer immer den echten Rang zeigt und
+// nicht die Position in der gefilterten Liste.
+function buildRankedRows(state) {
   const lane = state.lane;
   const now = Date.now();
+  const occupiedTurnStart = {};
+  lane.slots.forEach((s) => { if (s.occupantId) occupiedTurnStart[s.occupantId] = s.turnStartedAt; });
 
-  const rows = state.swimmers.map((s) => {
-    let ms = s.totalMs || 0;
-    if (lane.currentSwimmerId === s.id && lane.turnStartedAt) {
-      ms += now - lane.turnStartedAt;
-    }
-    const laps = s.totalLaps || 0;
+  return state.participants.map((p) => {
+    let ms = p.totalMs || 0;
+    if (occupiedTurnStart[p.id]) ms += now - occupiedTurnStart[p.id];
+    const laps = p.totalLaps || 0;
     return {
-      name: s.name,
+      participant: p,
+      name: participantDisplayName(p),
       laps,
       distanceM: laps * state.laneLengthM,
       minutes: Math.round(ms / 60000),
     };
   }).sort((a, b) => b.laps - a.laps);
+}
+
+function renderTable(state) {
+  const body = document.getElementById('statsTableBody');
+  const emptyHint = document.getElementById('statsEmptyHint');
+  const query = document.getElementById('searchInput').value.trim().toLowerCase();
+
+  const ranked = buildRankedRows(state);
+  const visible = ranked.map((r, i) => ({ ...r, rank: i + 1 })).filter((r) => {
+    if (!query) return true;
+    return r.name.toLowerCase().includes(query) || reversedName(r.participant).toLowerCase().includes(query);
+  });
 
   body.innerHTML = '';
-  if (rows.length === 0) {
+  if (ranked.length === 0) {
     emptyHint.style.display = 'block';
+    emptyHint.textContent = 'Noch niemand angemeldet.';
+  } else if (visible.length === 0) {
+    emptyHint.style.display = 'block';
+    emptyHint.textContent = 'Keine Treffer für „' + query + '".';
   } else {
     emptyHint.style.display = 'none';
-    rows.forEach((r, i) => {
+    visible.forEach((r) => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${i + 1}.</td><td>${escapeHtml(r.name)}</td><td>${r.laps}</td><td>${r.distanceM.toLocaleString('de-DE')} m</td><td>${r.minutes}</td>`;
+      tr.innerHTML = `<td>${r.rank}.</td><td>${escapeHtml(r.name)}</td><td>${r.laps}</td><td>${r.distanceM.toLocaleString('de-DE')} m</td><td>${r.minutes}</td>`;
       body.appendChild(tr);
     });
   }
 }
 
+function renderYourResult(state) {
+  const query = document.getElementById('searchInput').value.trim().toLowerCase();
+  const card = document.getElementById('yourResultCard');
+  if (!query) { card.hidden = true; return; }
+
+  const ranked = buildRankedRows(state);
+  const matches = ranked.map((r, i) => ({ ...r, rank: i + 1 })).filter((r) =>
+    r.name.toLowerCase().includes(query) || reversedName(r.participant).toLowerCase().includes(query)
+  );
+  if (matches.length !== 1) { card.hidden = true; return; }
+
+  const r = matches[0];
+  card.hidden = false;
+  document.getElementById('yourResultStats').innerHTML = `
+    <div class="your-result-name">${escapeHtml(r.name)}</div>
+    <div class="your-result-grid">
+      <div><span class="value">${r.rank}.</span><span class="label">Platz</span></div>
+      <div><span class="value">${r.laps}</span><span class="label">Bahnen</span></div>
+      <div><span class="value">${r.distanceM.toLocaleString('de-DE')} m</span><span class="label">Strecke</span></div>
+      <div><span class="value">${r.minutes}</span><span class="label">Min. im Wasser</span></div>
+    </div>
+  `;
+
+  const history = (state.recentHistory || []).filter((h) => h.participantId === r.participant.id);
+  const histList = document.getElementById('yourResultHistory');
+  const histEmpty = document.getElementById('yourResultHistoryEmpty');
+  histList.innerHTML = '';
+  histEmpty.style.display = history.length === 0 ? 'block' : 'none';
+  const colorsById = SWIM_COLORS.reduce((m, c) => (m[c.id] = c, m), {});
+  history.forEach((h) => {
+    const c = colorsById[h.color];
+    const row = document.createElement('div');
+    row.className = 'admin-list-row';
+    row.innerHTML = `
+      <span class="admin-list-name"><span class="color-swatch small" style="background:${c ? c.hex : '#999'}"></span> ${fmtDateTime(h.startTs)}</span>
+      <span class="admin-list-sub">${h.laps} Bahnen · ${Math.round(h.durationMs / 60000)} Min.</span>
+    `;
+    histList.appendChild(row);
+  });
+}
+
+document.getElementById('searchInput').addEventListener('input', () => {
+  if (latestState) { renderTable(latestState); renderYourResult(latestState); }
+});
+
 socket.on('state', render);
 
-// Live-Aktualisierung der Wasserzeit der aktuell schwimmenden Person
-setInterval(() => { if (latestState) renderTable(latestState); }, 5000);
+// Live-Aktualisierung der Wasserzeit für gerade aktive Teilnehmer:innen
+setInterval(() => { if (latestState) render(latestState); }, 5000);
 </script>
 </body>
 </html>

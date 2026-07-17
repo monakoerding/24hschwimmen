@@ -1,13 +1,14 @@
 {
   "name": "schwimm-relay-backend",
   "version": "1.0.0",
-  "description": "Backend für die 24h-Schwimm-Staffel (Registrierung, Warteliste, Bahnenzähler)",
+  "description": "Backend für das 24h-Schwimmen (Registrierung, Farb-Bahnenzähler, Admin)",
   "main": "server.js",
   "engines": {
     "node": ">=18"
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "seed": "node seed.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

@@ -19,48 +19,30 @@
 })();
 </script>
 <link rel="stylesheet" href="style.css">
+<script src="colors.js"></script>
 </head>
 <body>
 <div class="tv">
   <div class="tv-header">
     <div>
       <div class="tv-lane-label">24 Stunden Schwimmen 2026</div>
-      <div class="tv-event-label">Von 12 bis 12 Uhr muss immer wer im Wasser schwimmen &ndash; eine große Staffel</div>
+      <div class="tv-event-label">Eberswalder Schwimmverein e. V. &ndash; eine Bahn, 10 Farben, beliebig oft starten</div>
     </div>
     <div class="tv-clock mono" id="clock">--:--:--</div>
   </div>
 
+  <div class="tv-total">
+    <div class="tv-total-label">Gesamtstrecke auf dieser Bahn</div>
+    <div class="tv-total-value mono" id="totalDistValue">0 m</div>
+    <div class="tv-total-sub" id="totalLapsValue">0 Bahnen</div>
+  </div>
+
   <div class="tv-body">
     <div class="tv-main">
-      <div class="tv-total">
-        <div class="tv-total-label">Gesamtstrecke der Staffel</div>
-        <div class="tv-total-value mono" id="totalDistValue">0 m</div>
-        <div class="tv-total-sub" id="totalLapsValue">0 Bahnen</div>
-      </div>
-
-      <div class="tv-swimmer">
-        <div id="swimmerBlock">
-          <div class="idle">Bahn ist frei</div>
-        </div>
-      </div>
-
-      <div class="tv-stats">
-        <div class="stat-box">
-          <div class="label">Bahnen diese Runde</div>
-          <div class="value" id="lapsValue">0</div>
-        </div>
-        <div class="stat-box">
-          <div class="label">Strecke diese Runde</div>
-          <div class="value" id="distValue">0 m</div>
-        </div>
-      </div>
+      <div class="tv-color-grid" id="tvColorGrid"></div>
     </div>
 
-    <div class="tv-queue-panel">
-      <div class="tv-queue-title">Als nächstes dran:</div>
-      <ol class="tv-queue-list" id="tvQueueList"></ol>
-      <div class="empty-hint" id="tvQueueEmptyHint">Warteliste ist leer.</div>
-
+    <div class="tv-side-panel">
       <div class="tv-progress">
         <div class="tv-progress-title">Fortschritt</div>
         <div class="tv-progress-wrap" id="tvProgressWrap">
@@ -76,7 +58,7 @@
 <canvas id="celebrationCanvas"></canvas>
 <div class="conn-badge" id="connBadge">verbinde…</div>
 
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
 <script>
 const socket = io();
 const connBadge = document.getElementById('connBadge');
@@ -89,30 +71,15 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-function renderQueue(state) {
-  const list = document.getElementById('tvQueueList');
-  const emptyHint = document.getElementById('tvQueueEmptyHint');
-  list.innerHTML = '';
-  if (state.queue.length === 0) {
-    emptyHint.style.display = 'block';
-  } else {
-    emptyHint.style.display = 'none';
-    state.queue.forEach((s) => {
-      const li = document.createElement('li');
-      li.textContent = s.name;
-      list.appendChild(li);
-    });
-  }
-}
-
-// Bekannte Strecken als Etappenziele auf dem Weg zur Gesamtstrecke
+// Generische Distanz-Meilensteine (bewusst ohne Ortsbezug für den ersten
+// Entwurf, siehe Planung - können später durch echte Eberswalder
+// Wegpunkte/Vorjahreswerte ersetzt werden).
 const CHECKPOINTS = [
-  { label: 'Uelzen', km: 5 },
-  { label: 'Kanutour', km: 14 },
+  { label: '10 km', km: 10 },
   { label: 'Halbmarathon', km: 21.1 },
-  { label: 'Ärmelkanal', km: 34 },
+  { label: '30 km', km: 30 },
   { label: 'Marathon', km: 42.2 },
-  { label: 'Letztes Jahr', km: 45.15 },
+  { label: '50 km', km: 50 },
 ];
 
 function renderProgress(state) {
@@ -136,23 +103,33 @@ function renderProgress(state) {
   });
 }
 
-socket.on('state', (state) => {
-  const lane = state.lane;
-  const block = document.getElementById('swimmerBlock');
-  if (lane.swimmerName) {
-    block.innerHTML = `
-      <div class="status">Es schwimmt:</div>
-      <div class="name">${escapeHtml(lane.swimmerName)}</div>
-      ${lane.swimmerCry ? `<div class="cry">${escapeHtml(lane.swimmerCry)}</div>` : ''}
+function renderColorGrid(state) {
+  const slotsByColor = {};
+  state.lane.slots.forEach((s) => { slotsByColor[s.color] = s; });
+  const grid = document.getElementById('tvColorGrid');
+  grid.innerHTML = '';
+  SWIM_COLORS.forEach((c) => {
+    const slot = slotsByColor[c.id];
+    const occupied = slot && slot.occupantId;
+    const cell = document.createElement('div');
+    cell.className = 'tv-color-card ' + (occupied ? 'occupied' : 'free');
+    cell.innerHTML = `
+      <div class="tv-color-top">
+        <span class="color-swatch" style="background:${c.hex};${c.id === 'white' ? 'border:1px solid var(--line);' : ''}"></span>
+        <span class="color-badge">${c.index}</span>
+        <span class="color-name">${c.name}</span>
+      </div>
+      <div class="tv-color-name">${occupied ? escapeHtml(slot.occupantName) : '– frei –'}</div>
+      <div class="tv-color-stats">${occupied ? slot.laps + ' Bahnen · ' + slot.distanceM + ' m' : ''}</div>
     `;
-  } else {
-    block.innerHTML = `<div class="idle">Bahn ist frei</div>`;
-  }
-  document.getElementById('lapsValue').textContent = lane.laps;
-  document.getElementById('distValue').textContent = lane.distanceM + ' m';
+    grid.appendChild(cell);
+  });
+}
+
+socket.on('state', (state) => {
   document.getElementById('totalDistValue').textContent = state.totalDistanceM.toLocaleString('de-DE') + ' m';
   document.getElementById('totalLapsValue').textContent = state.totalLaps.toLocaleString('de-DE') + ' Bahnen';
-  renderQueue(state);
+  renderColorGrid(state);
   renderProgress(state);
 });
 
@@ -162,7 +139,7 @@ function tickClock() {
 setInterval(tickClock, 1000);
 tickClock();
 
-// ---- Feier-Feuerwerk am Ende der Staffel ----
+// ---- Feier-Feuerwerk am Ende des Events ----
 const celebrationCanvas = document.getElementById('celebrationCanvas');
 const cctx = celebrationCanvas.getContext('2d');
 let celebrating = false;

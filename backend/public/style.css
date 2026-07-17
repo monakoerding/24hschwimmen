@@ -237,66 +237,6 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
   margin-top: 4px;
 }
 
-.tv-swimmer{
-  text-align:center;
-  margin: 20px 0;
-}
-.tv-swimmer .status{
-  color: var(--slate);
-  font-size: 20px;
-  margin-bottom: 6px;
-}
-.tv-swimmer .name{
-  font-family:'Bebas Neue', sans-serif;
-  font-size: clamp(44px, 8vw, 96px);
-  line-height: 1;
-  color: var(--foam);
-}
-.tv-swimmer .cry{
-  margin-top: 14px;
-  font-size: clamp(18px, 2.6vw, 30px);
-  color: var(--lane);
-  font-weight: 600;
-}
-.tv-swimmer .idle{
-  font-family:'Bebas Neue', sans-serif;
-  font-size: clamp(36px, 6vw, 64px);
-  color: var(--slate);
-}
-
-.tv-stats{
-  display:flex;
-  gap: 24px;
-  justify-content:center;
-}
-.stat-box{
-  flex:1;
-  max-width: 340px;
-  background: linear-gradient(180deg, var(--panel), var(--ink));
-  border: 1px solid var(--line);
-  border-radius: 22px;
-  padding: 22px 18px;
-  text-align:center;
-}
-.stat-box .label{
-  color: var(--slate);
-  font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-bottom: 8px;
-}
-.stat-box .value{
-  font-family:'Bebas Neue', sans-serif;
-  font-size: clamp(36px, 5.5vw, 64px);
-  color: var(--lane);
-  line-height: 1;
-}
-.stat-box .sub{
-  color: var(--slate);
-  font-size: 14px;
-  margin-top: 6px;
-}
-
 .tv-body{
   display:flex;
   flex: 1;
@@ -310,7 +250,7 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
   flex-direction: column;
   justify-content: center;
 }
-.tv-queue-panel{
+.tv-side-panel{
   flex: 1;
   min-width: 0;
   border-left: 1px solid var(--line);
@@ -319,31 +259,6 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
   flex-direction: column;
   justify-content: flex-start;
 }
-.tv-queue-title{
-  color: var(--slate);
-  font-size: 16px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-bottom: 14px;
-}
-.tv-queue-list{
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  max-height: 38vh;
-  overflow-y: auto;
-}
-.tv-queue-list li{
-  font-family:'Bebas Neue', sans-serif;
-  font-size: clamp(20px, 2.4vw, 32px);
-  letter-spacing: 0.02em;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--line);
-  color: var(--foam);
-}
-.tv-queue-list li:first-child{ color: var(--lane); }
-.tv-queue-list li:last-child{ border-bottom: none; }
-
 .tv-progress{
   margin-top: 28px;
   flex: 1;
@@ -413,15 +328,13 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
 
   .tv-body{ flex-direction: column; gap: 28px; }
   .tv-main{ flex: none; }
-  .tv-queue-panel{
+  .tv-side-panel{
     flex: none;
     border-left: none;
     border-top: 1px solid var(--line);
     padding-left: 0;
     padding-top: 24px;
   }
-  .tv-stats{ flex-wrap: wrap; }
-  .stat-box{ max-width: none; min-width: 140px; }
   .tv-progress{ min-height: 140px; }
 }
 
@@ -435,54 +348,178 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
   display: none;
 }
 
-/* ---- Zähler-Ansicht (Handy) ---- */
-.counter-page{
+/* ---- Zähler-Ansicht (Handy/Tablet): Grid aus 10 Farb-Karten ---- */
+.counter-wrap{
   min-height:100vh;
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  padding: 24px;
+  padding: 20px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.counter-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  margin-bottom: 16px;
+}
+.admin-link{
+  color: var(--slate);
+  font-size: 13px;
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--tint-1);
+}
+
+.color-grid{
+  display:grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+@media (max-width: 820px){
+  .color-grid{ grid-template-columns: repeat(2, 1fr); }
+}
+
+.color-card{
+  background: linear-gradient(180deg, var(--panel), var(--ink));
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--card-color, var(--lane));
+  border-radius: 16px;
+  padding: 14px;
+  text-align:center;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+}
+.color-card.armed{ outline: 2px solid var(--good); outline-offset: 2px; }
+.color-card.locked{ opacity: 0.7; }
+.color-card.free{ opacity: 0.75; }
+
+.color-card-top{
+  display:flex;
+  align-items:center;
+  gap: 6px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.color-swatch{
+  display:inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex: none;
+}
+.color-swatch.small{ width: 10px; height: 10px; margin-right: 4px; }
+.color-badge{
+  font-family:'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--slate);
+  background: var(--tint-1);
+  border-radius: 6px;
+  padding: 1px 5px;
+}
+.color-name{
+  font-size: 12px;
+  color: var(--slate);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.color-card-occupant{
+  font-family:'Bebas Neue', sans-serif;
+  font-size: clamp(16px, 3vw, 20px);
+  min-height: 1.2em;
+  cursor: pointer;
+}
+.color-card-laps{
+  font-size: clamp(34px, 8vw, 48px);
+  line-height: 1;
+  margin: 6px 0;
+  color: var(--lane);
+  cursor: pointer;
+}
+.color-card-cooldown{
+  font-size: 12px;
+  color: var(--slate);
+  min-height: 16px;
+}
+.color-card-empty{
+  color: var(--slate);
+  font-size: 14px;
+  padding: 18px 0 12px;
+}
+
+.color-card-actions{
+  display:flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+.card-action-btn{
+  flex:1;
+  font-size: 12px;
+  padding: 9px 4px;
+  border: none;
+  border-radius: 10px;
+  background: var(--tint-2);
+  color: var(--foam);
+  cursor: pointer;
+}
+.card-action-btn.primary-action{
+  width: 100%;
+  background: var(--good);
+  color: #063017;
+  font-weight: 700;
+  padding: 12px 4px;
+}
+
+.sync-indicator{
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--good);
   text-align:center;
 }
 
-#startView, .start-confirm, .start-manual{
-  width: 100%;
-  max-width: 360px;
-}
-
-.start-question{
-  font-size: 20px;
+.key-hint{
+  margin-top: 16px;
+  font-size: 13px;
   color: var(--slate);
-  margin: -14px 0 20px;
+  text-align:center;
 }
 
-.btn-stack{
+/* Nutzt die generische Overlay-Struktur weiter unten (.overlay/.overlay-panel). */
+.assign-search-list{
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 6px;
+}
+.assign-search-item{
+  display:block;
+  width: 100%;
+  text-align:left;
+  background: var(--tint-1);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  color: var(--foam);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.type-toggle{
   display:flex;
-  flex-direction:column;
-  gap: 10px;
+  gap: 8px;
+  margin-bottom: 16px;
 }
-
-.start-manual label{ text-align:left; }
-.start-manual .empty-hint{ text-align:left; }
-
-.edit-queue-btn{
-  width: auto;
-  margin-top: 32px;
-  background: none;
+.type-toggle-btn{
+  flex:1;
+  background: var(--tint-1);
   color: var(--slate);
-  text-decoration: underline;
-  padding: 8px;
+  border: 1px solid var(--line);
 }
-
-.admin-section{
-  width: 100%;
-  max-width: 360px;
-  margin-top: 40px;
-  padding-top: 24px;
-  border-top: 1px solid var(--line);
-  opacity: 0.85;
+.type-toggle-btn.active{
+  background: var(--good);
+  color: #063017;
+  border-color: transparent;
 }
-.admin-section .card{ text-align: left; }
-.btn-row{ display:flex; gap:8px; }
-.btn-row button{ font-size: 13px; padding: 12px 8px; }
 
 .celebrate-btn{
   width: 100%;
@@ -492,50 +529,103 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
   font-size: 16px;
 }
 
-.counter-current{
-  color: var(--slate);
-  font-size: 16px;
-  margin-bottom: 4px;
+/* ---- Admin-Listen (Teilnehmer-Register, Verlauf) ---- */
+.admin-list{ max-height: 340px; overflow-y: auto; }
+.admin-list-row{
+  display:flex;
+  flex-direction:column;
+  gap: 2px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
 }
-.counter-name{
-  font-family:'Bebas Neue', sans-serif;
-  font-size: clamp(30px, 8vw, 48px);
-  margin-bottom: 24px;
+.admin-list-row:last-child{ border-bottom:none; }
+.admin-list-name{ font-weight: 700; display:flex; align-items:center; }
+.admin-list-sub{ font-size: 13px; color: var(--slate); }
+.admin-list-tag{
+  font-size: 11px;
+  color: var(--lane);
+  border: 1px solid var(--lane);
+  border-radius: 999px;
+  padding: 1px 7px;
+  margin-left: 8px;
+}
+.admin-list-remove{
+  align-self: flex-start;
+  width: auto;
+  font-size: 12px;
+  padding: 6px 10px;
+  margin-top: 4px;
+  background: var(--tint-2);
+  color: var(--bad);
 }
 
-.count-btn{
-  width: min(70vw, 280px);
-  height: min(70vw, 280px);
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, var(--lane), var(--panel) 75%);
-  color: #06222a;
+/* ---- Statistik: "Deine Ergebnisse" ---- */
+.your-result-name{
   font-family:'Bebas Neue', sans-serif;
-  font-size: 30px;
-  border: none;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+  font-size: clamp(24px, 5vw, 34px);
+  margin-bottom: 12px;
 }
-.count-btn:disabled{
-  opacity: .55;
-  filter: grayscale(0.4);
+.your-result-grid{
+  display:grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
 }
-.count-btn .big-num{
+.your-result-grid > div{
+  text-align:center;
+  background: var(--tint-1);
+  border-radius: 12px;
+  padding: 10px 4px;
+}
+.your-result-grid .value{
   display:block;
-  font-size: 64px;
-  line-height: 1;
+  font-family:'Bebas Neue', sans-serif;
+  font-size: clamp(20px, 4vw, 28px);
+  color: var(--lane);
+}
+.your-result-grid .label{
+  display:block;
+  font-size: 11px;
+  color: var(--slate);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+@media (max-width: 500px){
+  .your-result-grid{ grid-template-columns: repeat(2, 1fr); }
 }
 
-.key-hint{
-  margin-top: 10px;
+/* ---- Fernseher: Farb-Grid statt Einzel-Anzeige ---- */
+.tv-color-grid{
+  display:grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+}
+@media (max-width: 1100px){
+  .tv-color-grid{ grid-template-columns: repeat(2, 1fr); }
+}
+.tv-color-card{
+  background: linear-gradient(180deg, var(--panel), var(--ink));
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 16px;
+  text-align:center;
+}
+.tv-color-card.free{ opacity: 0.55; }
+.tv-color-top{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.tv-color-name{
+  font-family:'Bebas Neue', sans-serif;
+  font-size: clamp(18px, 2.4vw, 26px);
+  min-height: 1.3em;
+}
+.tv-color-stats{
   font-size: 13px;
   color: var(--slate);
-}
-
-.cooldown{
-  margin-top: 22px;
-  font-family:'JetBrains Mono', monospace;
-  font-size: 18px;
-  color: var(--slate);
-  min-height: 26px;
+  margin-top: 4px;
 }
 
 footer.hint{
@@ -556,8 +646,8 @@ footer.hint{
 .conn-badge.ok{ color: var(--good); }
 .conn-badge.bad{ color: var(--bad); }
 
-/* ---- Warteliste bearbeiten (Overlay auf dem Zähler-Handy) ---- */
-.queue-editor-overlay{
+/* ---- Farbe belegen/wechseln (Overlay auf dem Zähler-Gerät) ---- */
+.overlay{
   position: fixed;
   inset: 0;
   background: var(--scrim);
@@ -567,69 +657,21 @@ footer.hint{
   justify-content:center;
   padding: 24px 16px 64px;
 }
-.queue-editor-overlay[hidden]{ display:none; }
+.overlay[hidden]{ display:none; }
 
-.queue-editor-panel{
+.overlay-panel{
   width: 100%;
   max-width: 480px;
   height: fit-content;
 }
 
-.queue-editor-header{
+.overlay-header{
   display:flex;
   align-items:center;
   justify-content:space-between;
   margin-bottom: 16px;
 }
-.queue-editor-header button{ width:auto; padding: 10px 16px; }
-
-.queue-editor-add{
-  background: linear-gradient(180deg, var(--panel), var(--ink));
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: 20px;
-  margin-top: 8px;
-  text-align:left;
-}
-
-.dnd-list{ list-style:none; margin:0 0 8px; padding:0; text-align:left; }
-.dnd-item{
-  display:flex;
-  align-items:center;
-  gap: 10px;
-  background: linear-gradient(180deg, var(--panel), var(--ink));
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 10px 12px;
-  margin-bottom: 8px;
-  touch-action: pan-y;
-}
-.dnd-item.dragging{
-  opacity: 0.6;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-}
-.dnd-handle{
-  cursor: grab;
-  color: var(--slate);
-  font-size: 18px;
-  padding: 4px 6px;
-  touch-action: none;
-  user-select: none;
-}
-.dnd-pos{
-  font-family:'JetBrains Mono', monospace;
-  color: var(--slate);
-  width: 22px;
-}
-.dnd-name{ flex:1; text-align:left; }
-.dnd-remove{
-  background: none;
-  border:none;
-  color: var(--slate);
-  font-size: 15px;
-  padding: 4px 8px;
-  width:auto;
-}
+.overlay-header button{ width:auto; padding: 10px 16px; }
 
 /* ---- Statistik-Seite ---- */
 .progress-header{
