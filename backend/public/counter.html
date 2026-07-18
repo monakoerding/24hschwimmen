@@ -402,7 +402,6 @@ function renderGrid() {
       card.innerHTML = `
         <div class="color-card-top">
           <span class="color-swatch" style="background:${c.hex};border:${c.id === 'white' ? '1px solid var(--line)' : 'none'}"></span>
-          <span class="color-badge">${c.index}</span>
           <span class="color-name">${c.name}</span>
         </div>
         <div class="color-card-occupant">${escapeHtml(slot.occupantName || '')}</div>
@@ -430,7 +429,6 @@ function renderGrid() {
       card.innerHTML = `
         <div class="color-card-top">
           <span class="color-swatch" style="background:${c.hex};border:${c.id === 'white' ? '1px solid var(--line)' : 'none'}"></span>
-          <span class="color-badge">${c.index}</span>
           <span class="color-name">${c.name}</span>
         </div>
         <div class="color-card-empty">– frei –</div>
