@@ -24,17 +24,13 @@
 <body class="counter-body">
 <div class="counter-wrap">
   <div class="counter-header">
-    <div>
-      <div class="eyebrow">Eberswalder Schwimmverein e. V. · 24 Stunden Schwimmen 2026</div>
-      <div class="lane-tag" style="margin-top:6px;"><span class="dot"></span>Zähler</div>
-    </div>
-    <a class="admin-link" href="/admin.html">Admin →</a>
+    <div class="eyebrow">Eberswalder Schwimmverein e. V. · 24 Stunden Schwimmen 2026</div>
+    <div class="lane-tag"><span class="dot"></span>Zähler</div>
   </div>
 
   <div class="color-grid" id="colorGrid"></div>
 
   <div class="sync-indicator" id="syncIndicator" hidden></div>
-  <div class="key-hint">Zifferntasten 1–9/0 zählen die jeweilige Farbe. Andere Taste = zuletzt angetippte Farbe erneut zählen (für externen Clicker).</div>
 </div>
 
 <!-- Farbe belegen / wechseln -->
@@ -168,7 +164,7 @@ function pendingDeltaFor(color) {
   return pending[color] ? pending[color].pendingDelta : 0;
 }
 function displayedLapsFor(color) {
-  return serverLapsFor(color) + pendingDeltaFor(color);
+  return Math.max(0, serverLapsFor(color) + pendingDeltaFor(color));
 }
 function lockedUntilFor(color) {
   const pending = loadPending();
@@ -195,6 +191,28 @@ function triggerCount(color) {
     entry.pendingDelta += 1;
     entry.lastTs = Date.now();
     entry.lockedUntil = Date.now() + LOCKOUT_MS;
+    pending[color] = entry;
+    savePending(pending);
+    renderGrid();
+    renderSyncIndicator();
+  }
+}
+
+// Manuelle Korrektur (z. B. "-1" bei Vertippen) - bewusst OHNE Sperrzeit-
+// Prüfung, funktioniert also auch während der 10s-Zählsperre. Läuft über
+// denselben Offline-Puffer wie triggerCount, nur dass das Delta hier auch
+// negativ sein kann.
+function triggerAdjust(color, delta) {
+  const slot = latestState && latestState.lane.slots.find((s) => s.color === color);
+  if (!slot || !slot.occupantId) return;
+
+  if (socket.connected) {
+    socket.emit('adjustLaps', { color, delta, clientActionId: genActionId() });
+  } else {
+    const pending = loadPending();
+    const entry = pending[color] || { pendingDelta: 0, clientActionId: genActionId(), lastTs: 0 };
+    entry.pendingDelta += delta;
+    entry.lastTs = Date.now();
     pending[color] = entry;
     savePending(pending);
     renderGrid();
@@ -379,6 +397,8 @@ function renderGrid() {
     card.style.setProperty('--card-text', c.text);
 
     if (occupied) {
+      // Kompaktes Layout: linkes Drittel = Korrektur (-1) + "raus",
+      // rechte zwei Drittel = großflächige Zählfläche.
       card.innerHTML = `
         <div class="color-card-top">
           <span class="color-swatch" style="background:${c.hex};border:${c.id === 'white' ? '1px solid var(--line)' : 'none'}"></span>
@@ -386,18 +406,26 @@ function renderGrid() {
           <span class="color-name">${c.name}</span>
         </div>
         <div class="color-card-occupant">${escapeHtml(slot.occupantName || '')}</div>
-        <div class="color-card-laps mono">${laps}</div>
-        <div class="color-card-cooldown">${remaining > 0 ? 'gesperrt ' + Math.ceil(remaining / 1000) + ' s' : 'antippen zum Zählen'}</div>
-        <div class="color-card-actions">
-          <button type="button" class="card-action-btn free-btn">Freigeben</button>
-          <button type="button" class="card-action-btn switch-btn">Wechseln</button>
+        <div class="color-card-body">
+          <div class="color-card-side">
+            <button type="button" class="card-action-btn minus-btn">-1</button>
+            <button type="button" class="card-action-btn free-btn">raus</button>
+          </div>
+          <div class="color-card-count">
+            <div class="color-card-count-label">Zählen</div>
+            <div class="color-card-laps mono">${laps}</div>
+            <div class="color-card-cooldown">${remaining > 0 ? 'gesperrt ' + Math.ceil(remaining / 1000) + ' s' : ''}</div>
+          </div>
         </div>
       `;
-      card.querySelector('.color-card-top').addEventListener('click', () => triggerCount(c.id));
-      card.querySelector('.color-card-occupant').addEventListener('click', () => triggerCount(c.id));
-      card.querySelector('.color-card-laps').addEventListener('click', () => triggerCount(c.id));
+      card.querySelector('.color-card-count').addEventListener('click', () => triggerCount(c.id));
+      card.querySelector('.minus-btn').addEventListener('click', (e) => { e.stopPropagation(); triggerAdjust(c.id, -1); });
       card.querySelector('.free-btn').addEventListener('click', (e) => { e.stopPropagation(); freeSlotWithConfirm(c.id, slot.occupantName); });
-      card.querySelector('.switch-btn').addEventListener('click', (e) => { e.stopPropagation(); openAssignPanel(c.id, 'switch'); });
+      // "Wechseln" (Farbe direkt an eine andere Person/Team übergeben, ohne
+      // erst freizugeben) ist vorerst aus der Bedienung entfernt, aber im
+      // Code archiviert: openAssignPanel(color, 'switch') funktioniert
+      // weiterhin unverändert und kann bei Bedarf wieder an einen Button
+      // gehängt werden.
     } else {
       card.innerHTML = `
         <div class="color-card-top">
