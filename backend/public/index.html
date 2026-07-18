@@ -27,8 +27,7 @@
     <div class="eyebrow">Eberswalder Schwimmverein e. V. · 24 Stunden Schwimmen 2026</div>
     <h1 class="title">Anmeldung</h1>
     <p class="empty-hint" style="margin:-10px 0 20px;">
-      Hier meldest du dich bzw. dein Team einmalig an. Wann und wie oft ihr schwimmt,
-      wird direkt am Beckenrand am Zähler-Gerät festgelegt.
+      Hier meldest du dich bzw. dein Team einmalig an.
     </p>
 
     <div class="card">
@@ -38,20 +37,20 @@
       </div>
 
       <div id="individualFields">
-        <label for="firstNameInput">Vorname</label>
-        <input type="text" id="firstNameInput" placeholder="z. B. Mona" maxlength="40">
-        <label for="lastNameInput">Nachname</label>
-        <input type="text" id="lastNameInput" placeholder="z. B. Koerding" maxlength="40">
+        <label for="firstNameInput">Vorname <span class="required-star">*</span></label>
+        <input type="text" id="firstNameInput" placeholder="z. B. Delfinchen" maxlength="40">
+        <label for="lastNameInput">Nachname <span class="required-star">*</span></label>
+        <input type="text" id="lastNameInput" placeholder="z. B. Flitzeblitz" maxlength="40">
         <label for="clubInput">Verein</label>
         <input type="text" id="clubInput" placeholder="z. B. Eberswalder SV" maxlength="60">
-        <label for="birthDateInput">Geburtsdatum (optional)</label>
+        <label for="birthDateInput">Geburtsdatum</label>
         <input type="date" id="birthDateInput">
       </div>
 
       <div id="teamFields" hidden>
-        <label for="teamNameInput">Teamname</label>
+        <label for="teamNameInput">Teamname <span class="required-star">*</span></label>
         <input type="text" id="teamNameInput" placeholder="z. B. Wasserfrösche" maxlength="60">
-        <label for="teamClubInput">Verein (optional)</label>
+        <label for="teamClubInput">Verein</label>
         <input type="text" id="teamClubInput" placeholder="z. B. Eberswalder SV" maxlength="60">
       </div>
 

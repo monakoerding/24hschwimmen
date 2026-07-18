@@ -54,19 +54,19 @@
         <button type="button" class="type-toggle-btn" id="assignTypeTeamBtn">Team</button>
       </div>
       <div id="assignIndividualFields">
-        <label for="assignFirstNameInput">Vorname</label>
-        <input type="text" id="assignFirstNameInput" maxlength="40">
-        <label for="assignLastNameInput">Nachname</label>
-        <input type="text" id="assignLastNameInput" maxlength="40">
+        <label for="assignFirstNameInput">Vorname <span class="required-star">*</span></label>
+        <input type="text" id="assignFirstNameInput" placeholder="z. B. Delfinchen" maxlength="40">
+        <label for="assignLastNameInput">Nachname <span class="required-star">*</span></label>
+        <input type="text" id="assignLastNameInput" placeholder="z. B. Flitzeblitz" maxlength="40">
         <label for="assignClubInput">Verein</label>
         <input type="text" id="assignClubInput" maxlength="60">
-        <label for="assignBirthDateInput">Geburtsdatum (optional)</label>
+        <label for="assignBirthDateInput">Geburtsdatum</label>
         <input type="date" id="assignBirthDateInput">
       </div>
       <div id="assignTeamFields" hidden>
-        <label for="assignTeamNameInput">Teamname</label>
+        <label for="assignTeamNameInput">Teamname <span class="required-star">*</span></label>
         <input type="text" id="assignTeamNameInput" maxlength="60">
-        <label for="assignTeamClubInput">Verein (optional)</label>
+        <label for="assignTeamClubInput">Verein</label>
         <input type="text" id="assignTeamClubInput" maxlength="60">
       </div>
       <button class="primary" id="assignNewSubmitBtn">Anmelden &amp; Farbe belegen</button>

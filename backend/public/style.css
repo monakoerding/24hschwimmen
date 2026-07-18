@@ -116,7 +116,7 @@ label{
   font-weight: 600;
 }
 
-input[type="text"]{
+input[type="text"], input[type="date"], input[type="password"]{
   width: 100%;
   background: var(--tint-1);
   border: 1px solid var(--line);
@@ -125,11 +125,28 @@ input[type="text"]{
   color: var(--foam);
   font-size: 16px;
   margin-bottom: 14px;
+  box-sizing: border-box;
 }
-input[type="text"]:focus, button:focus, select:focus{
+input[type="text"]:focus, input[type="date"]:focus, input[type="password"]:focus, button:focus, select:focus{
   outline: 2px solid var(--good);
   outline-offset: 2px;
 }
+
+/* Kalender-Symbol im Datumsfeld: der browsereigene Picker ist standardmäßig
+   dunkel/kaum sichtbar auf unserem dunklen Hintergrund - hier hellgrau statt
+   passend zum Dunkel-Design; im Tag-Design bleibt das normale (dunkle) Icon,
+   da der Hintergrund dort ohnehin hell ist. */
+input[type="date"]::-webkit-calendar-picker-indicator{
+  cursor: pointer;
+  filter: invert(0.7);
+  opacity: 0.8;
+}
+:root[data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator{
+  filter: none;
+  opacity: 0.6;
+}
+
+.required-star{ color: var(--bad); font-weight: 700; }
 
 select{
   width: 100%;
@@ -173,12 +190,31 @@ button:disabled{ opacity: .4; cursor: not-allowed; }
 
 .empty-hint{ color: var(--slate); font-size: 14px; padding: 8px 0; }
 
+/* ---- Admin: Sprungmarken zu den anderen Ansichten ---- */
+.admin-nav{
+  display:flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 20px;
+}
+.nav-btn{
+  display:inline-block;
+  color: var(--foam);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--tint-2);
+  border: 1px solid var(--line);
+}
+
 /* ---- Anmeldung (Tablet) - bewusst groß und einfach bedienbar ---- */
 .signup-page h1.title{ font-size: clamp(32px, 7vw, 52px); }
 .signup-page .eyebrow{ font-size: 14px; }
 .signup-page .card{ padding: 26px; margin-bottom: 20px; }
 .signup-page label{ font-size: 16px; margin-bottom: 8px; }
-.signup-page input[type="text"], .signup-page select{ font-size: 19px; padding: 18px; margin-bottom: 18px; }
+.signup-page input[type="text"], .signup-page input[type="date"], .signup-page select{ font-size: 19px; padding: 18px; margin-bottom: 18px; }
 .signup-page button{ font-size: 19px; padding: 18px 20px; }
 
 .danger-btn{ background: var(--tint-2); color: var(--bad); width: 100%; }
