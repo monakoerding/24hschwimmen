@@ -167,11 +167,16 @@ function displayedLapsFor(color) {
   return Math.max(0, serverLapsFor(color) + pendingDeltaFor(color));
 }
 function lockedUntilFor(color) {
+  // Solange eine noch nicht synchronisierte lokale Aktion für diese Farbe
+  // aussteht, ist ihr lockedUntil maßgeblich (auch wenn es 0 ist, z. B.
+  // gerade durch "-1" aufgehoben) - sonst würde ein veralteter Server-Stand
+  // von vor dem Verbindungsverlust die Sperre fälschlich wieder anzeigen.
   const pending = loadPending();
-  const localUntil = pending[color] ? pending[color].lockedUntil || 0 : 0;
+  if (pending[color] && typeof pending[color].lockedUntil === 'number') {
+    return pending[color].lockedUntil;
+  }
   const slot = latestState ? latestState.lane.slots.find((s) => s.color === color) : null;
-  const serverUntil = slot ? slot.lockedUntil : 0;
-  return Math.max(localUntil, serverUntil);
+  return slot ? slot.lockedUntil : 0;
 }
 
 // ---- Zählen ----
@@ -199,9 +204,11 @@ function triggerCount(color) {
 }
 
 // Manuelle Korrektur (z. B. "-1" bei Vertippen) - bewusst OHNE Sperrzeit-
-// Prüfung, funktioniert also auch während der 10s-Zählsperre. Läuft über
-// denselben Offline-Puffer wie triggerCount, nur dass das Delta hier auch
-// negativ sein kann.
+// Prüfung, funktioniert also auch während der 10s-Zählsperre. Eine
+// Korrektur nach unten hebt die Sperre zusätzlich sofort auf (der
+// vertippte Zähl-Tap, der sie ausgelöst hat, wurde ja gerade zurückgenommen),
+// damit direkt weitergezählt werden kann. Läuft über denselben Offline-
+// Puffer wie triggerCount, nur dass das Delta hier auch negativ sein kann.
 function triggerAdjust(color, delta) {
   const slot = latestState && latestState.lane.slots.find((s) => s.color === color);
   if (!slot || !slot.occupantId) return;
@@ -213,6 +220,7 @@ function triggerAdjust(color, delta) {
     const entry = pending[color] || { pendingDelta: 0, clientActionId: genActionId(), lastTs: 0 };
     entry.pendingDelta += delta;
     entry.lastTs = Date.now();
+    if (delta < 0) entry.lockedUntil = 0;
     pending[color] = entry;
     savePending(pending);
     renderGrid();
@@ -403,8 +411,8 @@ function renderGrid() {
         <div class="color-card-top">
           <span class="color-swatch" style="background:${c.hex};border:${c.id === 'white' ? '1px solid var(--line)' : 'none'}"></span>
           <span class="color-name">${c.name}</span>
+          <span class="color-card-occupant">· ${escapeHtml(slot.occupantName || '')}</span>
         </div>
-        <div class="color-card-occupant">${escapeHtml(slot.occupantName || '')}</div>
         <div class="color-card-body">
           <div class="color-card-side">
             <button type="button" class="card-action-btn minus-btn">-1</button>

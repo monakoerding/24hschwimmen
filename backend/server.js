@@ -406,6 +406,11 @@ io.on('connection', (socket) => {
     state.totalLaps = Math.max(0, state.totalLaps + actualDelta);
     const p = slot.occupantId ? getParticipant(slot.occupantId) : null;
     if (p) p.totalLaps = Math.max(0, (p.totalLaps || 0) + actualDelta);
+    // Eine Korrektur nach unten (Vertipper) hebt eine laufende Zählsperre
+    // sofort auf, damit direkt neu gezählt werden kann - anders als der
+    // positive Nachtrag gepufferter Offline-Zählungen, der die normale
+    // Sperrzeit-Logik unangetastet lässt.
+    if (delta < 0) slot.lastCountAt = 0;
     pushActionId(slot, clientActionId);
     socket.emit('actionAck', { clientActionId, color, event: 'adjustLaps', laps: slot.laps });
     broadcast();
