@@ -74,6 +74,7 @@
   </div>
 </div>
 
+<div class="name-tooltip" id="nameTooltip" hidden></div>
 <div class="conn-badge" id="connBadge">verbinde…</div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -381,6 +382,39 @@ function freeSlotWithConfirm(color, name) {
   socket.emit('freeSlot', { color });
 }
 
+// ---- Vollen Namen bei gedrückt gehaltenem Tap anzeigen ----
+// Der Name in der Kachel wird bei Bedarf mit "…" abgeschnitten; solange
+// man ihn gedrückt hält, erscheint eine kleine Sprechblase mit dem
+// kompletten Namen (dafür außerhalb der Kachel, da diese overflow:hidden hat).
+
+const nameTooltip = document.getElementById('nameTooltip');
+
+function showNameTooltip(e) {
+  const name = e.currentTarget.dataset.fullName;
+  if (!name) return;
+  e.preventDefault();
+  nameTooltip.textContent = name;
+  nameTooltip.hidden = false;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const tw = nameTooltip.offsetWidth;
+  const th = nameTooltip.offsetHeight;
+  let left = rect.left + rect.width / 2 - tw / 2;
+  left = Math.max(6, Math.min(left, window.innerWidth - tw - 6));
+  let top = rect.top - th - 8;
+  // Für Kacheln in der obersten Reihe reicht "oberhalb" bis in den Kopfbereich
+  // hinein - dann lieber unterhalb der Kachel anzeigen.
+  if (top < 50) top = rect.bottom + 8;
+  top = Math.max(6, Math.min(top, window.innerHeight - th - 6));
+  nameTooltip.style.left = left + 'px';
+  nameTooltip.style.top = top + 'px';
+}
+function hideNameTooltip() {
+  nameTooltip.hidden = true;
+}
+document.addEventListener('pointerup', hideNameTooltip);
+document.addEventListener('pointercancel', hideNameTooltip);
+document.addEventListener('pointerleave', hideNameTooltip);
+
 // ---- Rendering des Farb-Grids ----
 
 const cooldownTimers = {};
@@ -411,7 +445,7 @@ function renderGrid() {
         <div class="color-card-top">
           <span class="color-swatch" style="background:${c.hex};border:${c.id === 'white' ? '1px solid var(--line)' : 'none'}"></span>
           <span class="color-name">${c.name}</span>
-          <span class="color-card-occupant">· ${escapeHtml(slot.occupantName || '')}</span>
+          <span class="color-card-occupant" data-full-name="${escapeHtml(slot.occupantName || '')}">· ${escapeHtml(slot.occupantName || '')}</span>
         </div>
         <div class="color-card-body">
           <div class="color-card-side">
@@ -428,6 +462,7 @@ function renderGrid() {
       card.querySelector('.color-card-count').addEventListener('click', () => triggerCount(c.id));
       card.querySelector('.minus-btn').addEventListener('click', (e) => { e.stopPropagation(); triggerAdjust(c.id, -1); });
       card.querySelector('.free-btn').addEventListener('click', (e) => { e.stopPropagation(); freeSlotWithConfirm(c.id, slot.occupantName); });
+      card.querySelector('.color-card-occupant').addEventListener('pointerdown', showNameTooltip);
       // "Wechseln" (Farbe direkt an eine andere Person/Team übergeben, ohne
       // erst freizugeben) ist vorerst aus der Bedienung entfernt, aber im
       // Code archiviert: openAssignPanel(color, 'switch') funktioniert

@@ -463,6 +463,28 @@ body.counter-body{
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: left;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Sprechblase mit dem vollen Namen, solange der (abgeschnittene) Name
+   gedrückt gehalten wird - liegt außerhalb der Kachel, da .color-card
+   overflow:hidden hat. */
+.name-tooltip{
+  position: fixed;
+  z-index: 100;
+  background: var(--ink);
+  color: var(--foam);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-family:'Bebas Neue', sans-serif;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.35);
 }
 
 /* Belegte Kachel: linkes Drittel Korrektur (-1) + "raus", rechte zwei
